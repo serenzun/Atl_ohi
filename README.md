@@ -1,4 +1,4 @@
-# ohi-plus-template
+# How to create your OHI+ repository
 
 This is a tailored repository for the Ocean Health Index OHI+ assessments and the OHI Toolbox. It contains templated data for 1 region. 
 
