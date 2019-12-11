@@ -152,7 +152,7 @@ FIS <- function(layers) {
            method) %>%
     dplyr::filter(year == scen_year) 
   
-  write.csv(gap_fill_data, here('maldives/temp/FIS_summary_gf.csv'), row.names = FALSE)
+  write.csv(gap_fill_data, here('region/temp/FIS_summary_gf.csv'), row.names = FALSE)
   
   status_data <- data_fis_gf %>%
     dplyr::select(region_id, stock_id, year, catch, score)
@@ -540,7 +540,7 @@ NP <- function(scores, layers) {
       dplyr::mutate(gapfilled = ifelse(is.na(exposure), 1, 0)) %>%
       dplyr::mutate(method = ifelse(is.na(exposure), "prod_average", NA)) %>%
       dplyr::select(rgn_id = region_id, product, year, gapfilled, method)
-    write.csv(gap_fill, here('maldives/temp/NP_exposure_gf.csv'), row.names = FALSE)
+    write.csv(gap_fill, here('region/temp/NP_exposure_gf.csv'), row.names = FALSE)
     
     ### add exposure for countries with (habitat extent == NA)
     np_exp <- np_exp %>%
@@ -791,7 +791,7 @@ CS <- function(layers) {
   
   write.csv(
     weights,
-    sprintf(here("maldives/temp/element_wts_cs_km2_x_storage_%s.csv"), scen_year),
+    sprintf(here("region/temp/element_wts_cs_km2_x_storage_%s.csv"), scen_year),
     row.names = FALSE
   )
   
@@ -954,7 +954,7 @@ CP <- function(layers) {
   
   write.csv(
     weights,
-    sprintf(here("maldives/temp/element_wts_cp_km2_x_protection_%s.csv"), scen_year),
+    sprintf(here("region/temp/element_wts_cp_km2_x_protection_%s.csv"), scen_year),
     row.names = FALSE
   )
   
@@ -1059,7 +1059,7 @@ TR <- function(layers) {
 LIV <- function(layers) {
   
   # NOTE: scripts and related files for calculating these subgoals is located: 
-  # maldives/archive
+  # region/archive
   # These data are no longer available and status/trend have not been updated since 2013
   
   scen_year <- layers$data$scenario_year
@@ -1093,7 +1093,7 @@ LIV <- function(layers) {
 ECO <- function(layers) {
 
   # NOTE: scripts and related files for calculating these subgoals is located: 
-  # maldives/archive
+  # region/archive
   # These data are no longer available and status/trend have not been updated since 2013
   
   scen_year <- layers$data$scenario_year
@@ -1520,7 +1520,7 @@ HAB <- function(layers) {
     dplyr::select(rgn_id = region_id, habitat, boolean, layer)
   
   write.csv(weights,
-            sprintf(here("maldives/temp/element_wts_hab_pres_abs_%s.csv"), scen_year),
+            sprintf(here("region/temp/element_wts_hab_pres_abs_%s.csv"), scen_year),
             row.names = FALSE)
   
   layers$data$element_wts_hab_pres_abs <- weights
