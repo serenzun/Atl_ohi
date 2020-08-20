@@ -1,0 +1,127 @@
+---
+title: "OHI-atl/npp prs_fish layer/npp"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(sf)
+library(raster)       #Main raster library with nearly all functions used in this analysis
+library(rgdal)        #Spatial library - most functions used from rgdal are for vectors (shapefiles)
+library(dplyr)        #NOT spatial - this is a data wrangling library
+library(ggplot2)
+library(here)
+library(tidyverse)
+library(ncdf4)
+library(raster)
+library(RColorBrewer)
+library(sf)
+```
+
+#Summary
+--> to do: (from ohiprep_v2020 and previous) This script calculates log-transformed, mean annual net primary production values globally from 2003 to 2015. This data is used to standardize commercial fishing catch to produce [fishing pressure layers for OHI]
+
+#Data source
+GLOBAL-REANALYSIS-BIO-001-029-MONTHLY
+
+**Reference**:CMEMS copernicus https://resources.marine.copernicus.eu/?option=com_csw&task=results **Downloaded**: August 12, 2020 Description: Monthly Net Primary Production (mg C / m2 / day): we used Total Primary Production of Phyto
+nppv (mg m-3 day-1) 
+**Native data** resolution: 0.25 degree x 0.25 degree (75 depth levels) 
+**Time range**: From 1993-01-01 to 2019-12-23. both daily and montly mean. 
+**Format**: NetCfd fo rmat Variables: CHL PHYC O2 NO3 PO4 SI FE SPCO2 PH PP. Here we used PP. **Geographical area selected**: -99, 85, 70, -80
+
+IL FILE è TROPPO GRANDE. DEVO FORSE SCARICARLI IN CARTELLE ANNO PER ANNO PER POTERCI FARE LA MEDIA PER CIASCUN ANNO? Instructions
+
+Parameters used for downloading the data
+
+Parameter	Value|Product	MEDSEA_ANALYSIS_FORECAST_BIO_006_014
+---------------|--------------------------------------------
+Frequency|	monthly
+Lat min|	30.18
+Lat max|	45.97
+Lon min|	-5.54
+Lon max|	36.29
+Timesteps|	2019-09-01, 2019-09-09
+Service for downloading|	
+Files total dimension|	~250 MB
+Datasets| 
+* med-ogs-pft-an-fc-m
+* med-ogs-nut-an-fc-m
+* med-ogs-co2-an-fc-m
+
+```{r}
+#import shp for the regions
+regions_atl_FAO <- st_read("~/big/atl_regions/Regions_atl_FAO.shp", quiet = TRUE)
+reg_atl_FAO_sp <- as(regions_atl_FAO, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+reg_atl_FAO_sp
+plot(reg_atl_FAO_sp)
+
+
+# set bigdir directory for raster analysis
+setwd("C:/Users/Acer/Documents/big")
+R_raster_tmp='~/big/R_raster_tmp' 
+dir.create(R_raster_tmp, showWarnings=T)
+
+#define paths for the raw data and layer folder held on my pc Documents folder. (Once the project starts, the path should migrate to a shared database)
+
+npp_19 <- stack(file.path(R_raster_tmp, 'global-reanalysis-bio-001-029-monthly_1597267552177.nc'))#Large SpatialGridDataFrame
+
+#You can perform operations on a RasterStack by using the calc() function from the raster package. calc() lets you define a function to apply across all layers in the stack.
+nppAvg = raster::calc(npp_19, fun=function(x){mean(x, na.rm=T)})
+nppAvg_c<-crop(nppAvg,reg_atl_FAO_sp)
+  plot(nppAvg_c)
+nppAvg_m<-mask(nppAvg_c, reg_atl_FAO_sp)
+
+
+### Define spectral color scheme for plotting maps
+ cols = rev(colorRampPalette(brewer.pal(9, 'Spectral'))(255)) # rainbow color scheme 
+
+plot(nppAvg_m, main = 'Mean Total Primary Production of Phyto (mg m-3 day-1)', col=cols, axes=FALSE)
+    plot(reg_atl_FAO_sp, add=TRUE,axes=FALSE)
+
+##turning the reg shapefile into a raster with the same dimensions as npp_crop but with cell values equal to the rgn_id of each polygon in the shapefile
+
+    ## By adding 'filename=......tif' R will directly save the raster into the defined file rather than memory
+zones = rasterize(reg_atl_FAO_sp, nppAvg_m, field = reg_atl_FAO_sp@data$ID, filename='~/big/atl_regions/zones.tif')
+ {plot(zones, axes=F,main = "Zonal Raster for Atlantic Ocean \n (cell values are unique to sub-regions)")+
+  plot(nppAvg_m, add=TRUE,col=cols)+
+  plot(reg_atl_FAO_sp, add=TRUE)}#{}+ are necessary for rmd.
+mean_z <- zonal(nppAvg_m,zones,fun=mean) #we want to get the mean per region, this could also be min/max or another function
+mean_z
+plot(mean_z)
+```
+
+
+#`extract()`
+
+Use `raster::extract()` to get all values of the raster within each of your subregions. This function returns all cell alues in a list in length equal to the number of subregions. The list can be turned into a dataframe with two columns;
+
+- **value** are the cell values (in this case number of anomalous weeks)  
+- **rgn_name** are the names of the sub regions
+
+```{r}
+# get all values within each region
+vals = raster::extract(nppAvg_c,reg_atl_FAO_sp,method='simple')%>%
+  setNames(reg_atl_FAO_sp@data$NAME_EN)
+# plot distribution of data per region
+df <- data.frame(unlist(vals))%>%
+  rename(value = unlist.vals.)%>%
+  mutate(rgn_name = gsub("\\d+", "",row.names(.))) #the gsub here removes all numbers from the rgn_name
+#now we have each value assigned to rgn_name.
+head(df)
+
+
+mean_df <- df%>%
+  group_by(rgn_name)%>%
+  summarise(mean_nnp = mean(value,na.rm=T))
+mean_df
+
+
+print(raw)
+#Crop raster data to region extent
+
+
+
+```
