@@ -38,7 +38,7 @@ This comes from the sf package and is a preferred method of loading and working 
 here()
 
 setwd("C:/Users/Acer/Documents/big")
-regions_gl <- st_read("~/big/FAO_areasMAJOR/FAO_AREAS.shp", quiet = TRUE)
+regions_gl <- st_read("~/big/atl_regions/FAO_AREAS.shp", quiet = TRUE)
 
 head(regions_gl)
 plot(regions_gl[4]) #plot() which column to show, otherwise R will create a plot for every column, which we do not need
@@ -57,16 +57,17 @@ plot(regions_atl_FAO[4], key.pos=1)
 #Save shapefile: save the output (saving as an ESRI Shapefile)
 
 setwd("C:/Users/Acer/Documents/big")
-bigdir='~/big/R_raster_tmp' 
+bigdir='~/big/atl_regions' 
 
 dir.create(bigdir, showWarnings=T)
-sf::write_sf(regions_atl_FAO,paste0(bigdir),"/",  "Regions_atl_FAO.shp", driver = "ESRI Shapefile")#if you want to re-run, delete the file in the folder
+sf::write_sf(regions_atl_FAO,paste0(bigdir),  "Regions_atl_FAO.shp", driver = "ESRI Shapefile")#if you want to re-run, delete the file in the folder
 
 #we need to convert the regions object to a SpatialPolygonsDataFrame. This is done using as(). You pass your simple feature object - regions - to as() and tell it to convert to a Spatial object. This returns the same polygons but as a SpatialPolygonsDataFrame.
 
 library(rgdal)
 reg_atl_FAO_sp <- as(regions_atl_FAO, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
 reg_atl_FAO_sp
+
 
 plot(reg_atl_FAO_sp)
 ```

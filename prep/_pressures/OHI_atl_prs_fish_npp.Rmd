@@ -1,8 +1,8 @@
 ---
 title: "OHI-atl/npp prs_fish layer/npp"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -84,7 +84,7 @@ plot(nppAvg_m, main = 'Mean Total Primary Production of Phyto (mg m-3 day-1)', c
 ##turning the reg shapefile into a raster with the same dimensions as npp_crop but with cell values equal to the rgn_id of each polygon in the shapefile
 
     ## By adding 'filename=......tif' R will directly save the raster into the defined file rather than memory
-zones = rasterize(reg_atl_FAO_sp, nppAvg_m, field = reg_atl_FAO_sp@data$ID, filename='~/big/atl_regions/zones.tif')
+zones = rasterize(reg_atl_FAO_sp, nppAvg_m, field = reg_atl_FAO_sp@data$ID )#, filename='~/big/atl_regions/zones.tif')
  {plot(zones, axes=F,main = "Zonal Raster for Atlantic Ocean \n (cell values are unique to sub-regions)")+
   plot(nppAvg_m, add=TRUE,col=cols)+
   plot(reg_atl_FAO_sp, add=TRUE)}#{}+ are necessary for rmd.
