@@ -1,0 +1,186 @@
+---
+title: "fis_prep_watson"
+author: "Serena"
+date: "5/9/2020"
+output: html_document
+---
+
+# New Global Fisheries Catch Data - Watson data
+(script derived from: globalprep/prs_fish/v2020/data_download.Rmd)
+
+# Summary
+
+The commercial fishing layers are created from spatialized catch (by gear??) data provided by Watson (2019)
+
+This script prepares and formats the IMAS Global Fisheries Catch raw data into intermediate data by combining Industrial and Non Industrial catch (Catch_XXXX_XXXX) rds files with geospatial information (sheet name Cells in Codes.xlsx), taxon information (sheet name Taxa in Codes.xlsx), gear (sheet name Gear in Codes.xlsx), and country information (sheet name Country in Codes.xlsx), as well as a single file with all years.
+
+# Data Source
+
+**Reference**: Watson, R. A. and Tidd, A. 2019. Mapping nearly a century and a half of global marine fishing: 1869–2017. Marine Policy, 93, pp. 171-177. [(Paper URL)](https://doi.org/10.1016/j.marpol.2018.04.023)
+
+**Downloaded**: September 5, 2020  from [IMAS portal](http://data.imas.utas.edu.au/portal/search?uuid=ff1274e1-c0ab-411b-a8a2-5a12eb27f2c0) - click on download tab, step 3
+
+**Description**:  Global fisheries landings data per cell separated by Industrial versus Non-Industrial catch, IUU, and discards.
+
+**Native data resolution**:   
+
+**Time range**: 1950 - 2015 (?halpern says 2017, but these data are not available yet on the website)
+
+**Format**:  CSV format
+
+**Additional Information**: [Metadata](http://metadata.imas.utas.edu.au/geonetwork/srv/eng/metadata.show), [Supplementary Material](https://ars.els-cdn.com/content/image/1-s2.0-S0308597X18300605-mmc1.docx)
+***
+
+* Industrial Catch (1950 - 2019) - reported, iuu, and discard catch data for each cell location and unique identifier
+* Non-Industrial Catch (1950 - 2015) - reported, iuu, and discard catch data for each cell location and unique identifier
+* Master Index File (Index.csv) - information associated with the unique identifiers. This is split into two files, "IndexInd" (industrial) and "IndexNInd" (non-industrial).
+* DATA CODE DEFINITIONS (gear/taxa/country codes and cell lat/lon references)
+
+**Data download**
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(sf)
+library(raster)       #Main raster library with nearly all functions used in this analysis
+library(rgdal)        #Spatial library - most functions used from rgdal are for vectors (shapefiles)
+library(dplyr)        #NOT spatial - this is a data wrangling library
+library(ggplot2)
+library(here)
+library(tidyverse)
+library(ncdf4)
+
+library(RColorBrewer)
+library(readxl)
+library(DT)
+```
+#I need to save the csv file into rdf (kind of compress file) since csv have trouble with memory
+#define paths for the raw data and layer folder held on my pc Documents folder. (Once the project starts, the path should migrate to a shared database)
+
+# Difference with OHI 2020: Updates from previous assessment
+*they have already v5 of Watson data. It is stored in Mazu but it is not available from the web yet. The v5 is already structured on roder to avoid extra work on file. probably the years are splitted in different files.
+I.e. there were no index files to join with the raw data, because they already completed that for us
+
+* (Previously we had to do extra data prep to match the index files with the raw catch data. In version 5, this prep has been done for us. Now we just need to combine the raw data with geospatial information (sheet name Cells in Codes.xlsx), taxon information (sheet name Taxa in Codes.xlsx), gear (sheet name Gear in Codes.xlsx), and country information (sheet name Country in Codes.xlsx).)
+
+* Version 5 of the data includes years through 2017 (which was previously only 2015). For this assessment we are including the years through 2017 in the fisheries data, as well as the NPP data (which we only previously included through 2015 for). 
+
+*
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+source(here::here("~/Documents/big_sere"))
+
+here()
+
+# set bigdir directory for raster analysis
+#setwd("C:/Users/Acer/Documents/big")
+setwd("C:/Users/Serena/Documents/big_sere/watson")
+
+dir_w='~/big_sere/watson' 
+dir_w <- file.path("C:/Users/Serena/Documents/big_sere/watson")
+
+
+
+web_years <- c("Ind1950_1954", "Ind1955_1959", "Ind1960_1964", "Ind1965_1969", 
+               "Ind1970_1974", "Ind1975_1979", "Ind1980_1984", "Ind1985_1989",
+               "Ind1990_1994", "Ind1995_1999", "Ind2000_2004", "Ind2005_2009", 
+               "Ind2010_2014", "Ind2015_2019", "NInd1950_1954", "NInd1955_1959",
+               "NInd1960_1964", "NInd1965_1969", "NInd1970_1974", "NInd1975_1979",
+               "NInd1980_1984", "NInd1985_1989", "NInd1990_1994", "NInd1995_1999", 
+               "NInd2000_2004", "NInd2005_2009", "NInd2010_2014", "NInd2015_2019")
+
+## Download catch data from web and save into server(to decide)
+#very long process
+for(web_year in web_years){ 
+#web_year <- "Ind1955_1959"#
+data <- read.csv(file.path(dir_w, sprintf("Catch%s.csv", web_year)))
+saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
+}
+
+
+
+for(web_year in web_years){ 
+#web_year <- "NInd1950_1954"#I have to change this everytime to save all the different file
+data <- read.csv(sprintf("https://data.imas.utas.edu.au/attachments/5c4590d3-a45a-4d37-bf8b-ecd145cb356d/Catch%s.csv", web_year))
+saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
+}
+
+#Explore Watson v4
+data1 <- readRDS(file.path(dir_w, "raw/CatchInd1950_1954.rds"))
+head(data1)
+data2 <- readRDS(file.path(dir_w, "CatchInd1955_1959.rds"))
+data3 <- readRDS(file.path(new_rawFolder, "CatchInd2005_2009.rds"))
+}
+```
+
+
+##Read in Spatial cells, Taxa reference, Country reference, and a single 5-year Catch dataset. 
+ How to download the data code definitions. 
+
+For this, it is saved as an .xlsx file (Codes.xlsx). This file has 4 sheets in it which contain meta data that explain columns in the Index files, and one sheet with is "Spatial Cells Reference - contains geospatial information associated wtih the Industrial Catch data". 
+To download this data, go to the IMAS website: http://data.imas.utas.edu.au/portal/search?uuid=ff1274e1-c0ab-411b-a8a2-5a12eb27f2c0 and download it manually.
+
+This .xlsx file contains these sheets:
+
+* Spatial Cells Reference (Cells) - contains geospatial information associated wtih the Industrial Catch data
+* Gear Reference (Gear) - contains information regarding how different fishing gear is classified in the index datasets.
+* Taxa Reference (Taxa) - contains information regarding how different taxa is classified in the index datasets.
+* Country Reference (Country) - contains informations regarding how different countries are labeled in the index datasets. 
+
+
+```{r, eval = FALSE}
+## Load Files 
+taxa <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Taxa")
+country <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Country")
+gear <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Gear") %>%
+  dplyr::select(FGearCode, FleetGearName) %>%
+  unique() ## Need to include the gear in this because we will use this for softbottom habitat pressure
+# Spatial cells reference
+spatialCells <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Cell")
+DT::datatable(head(spatialCells))
+```
+```{r}
+Ind_new <- read.csv(file.path(dir_w, "IndexInd.csv"))
+Ind_new <- gather(Ind_new, "catch_type", "tonnes", c("Reported", "IUUTotal", "Discards")) %>%  #change format from wide to long (i think that the function gather has been updated..don't remember the new one though) (catch_type is the new columns for the new id variable; the name for the new observation variable (tonn) and the name of the old obseratio variables)
+  mutate(data = "Industrial_v4")
+
+NInd_new <- read.csv(file.path(dir_w, "IndexNInd.csv"))
+NInd_new <- gather(NInd_new, "catch_type", "tonnes", c("Reported", "IUUTotal", "Discards")) %>%
+  mutate(data = "NonIndustrial_v4")
+
+new_catch <- rbind(Ind_new, NInd_new) %>%
+  select(ID, Year=IYear, catch_type, tonnes, data)
+
+catch_data <- new_catch %>%
+  group_by(Year, data, catch_type) %>%
+  summarize(tonnessss = sum(tonnes)) %>%
+  filter(Year >= 1990) %>%
+  separate(data, c("Ind_vs_NInd", "data_version"), by="_")
+
+ggplot(catch_data)+ group_by=data 
+                       group=interaction(data_version, catch_type),
+                       color=catch_type,
+                       linetype=data_version,
+                       shape=data_version)) +
+  geom_point() +
+  geom_line() +
+  labs(title="Commercial Fisheries")
+
+
+```
+
+
+
+#Exploring Watson Fisheries Data
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+## Setup
+```{r}
+data <- readRDS(file.path(dir_M, "git-annex/globalprep/_raw_data/IMAS_GlobalFisheriesLandings/d2018/CatchInd_1950_1954.rds"))
+DT::datatable(head(data))
+
+```
+
