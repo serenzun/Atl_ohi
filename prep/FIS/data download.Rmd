@@ -1,0 +1,48 @@
+```{r setup, include=FALSE}
+
+
+dir_drive<-file.path()
+
+web_years <- c("Ind1950_1954", "Ind1955_1959", "Ind1960_1964", "Ind1965_1969", 
+               "Ind1970_1974", "Ind1975_1979", "Ind1980_1984", "Ind1985_1989",
+               "Ind1990_1994", "Ind1995_1999", "Ind2000_2004", "Ind2005_2009", 
+               "Ind2010_2014", "Ind2015_2019", "NInd1950_1954", "NInd1955_1959",
+               "NInd1960_1964", "NInd1965_1969", "NInd1970_1974", "NInd1975_1979",
+               "NInd1980_1984", "NInd1985_1989", "NInd1990_1994", "NInd1995_1999", 
+               "NInd2000_2004", "NInd2005_2009", "NInd2010_2014", "NInd2015_2019")
+
+setwd("C:/Users/Acer/Documents/big/fis/watson")
+dir_w <- file.path("C:/Users/Acer/Documents/big/fis/watson")#dove mi salva i file più leggeri rds
+dir_big<-file.path("G:/Il mio Drive/big_drive/watson")#da dove mi prende grandi file originali di watson
+
+list.files(dir_big)
+## Download catch data from web and save into server(to decide)
+#very long process
+for(web_year in web_years){ 
+#web_year <- "Ind1955_1959"#
+data <- read.csv(file.path(dir_big, sprintf("Catch%s.csv", web_year)))
+saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
+}
+
+
+
+
+for(web_year in web_years){ 
+#web_year <- "NInd1950_1954"#I have to change this everytime to save all the different file
+data <- read.csv(sprintf("https://data.imas.utas.edu.au/attachments/5c4590d3-a45a-4d37-bf8b-ecd145cb356d/Catch%s.csv", web_year))
+saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
+}
+
+
+for(web_year in web_years){ 
+#web_year <- "NInd1950_1954"#I have to change this everytime to save all the different file
+data <- read.csv(sprintf("https://data.imas.utas.edu.au/attachments/5c4590d3-a45a-4d37-bf8b-ecd145cb356d/Catch%s.csv", web_year))
+saveRDS(data, file.path(dir_big, sprintf("raw/Catch%s.rds", web_year)))
+}
+
+#Explore Watson v4
+data1 <- readRDS(file.path(dir_w, "raw/CatchInd1950_1954.rds"))
+str(data1)
+data2 <- readRDS(file.path(dir_w, "CatchInd1955_1959.rds"))
+data3 <- readRDS(file.path(new_rawFolder, "CatchInd2005_2009.rds"))
+}
