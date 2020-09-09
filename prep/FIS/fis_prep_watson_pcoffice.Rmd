@@ -55,82 +55,12 @@ library(readxl)
 #install.packages("DT")
 library(DT)
 
+
+dir_w<-file.path("C:/Users/Acer/Documents/big/fis/watson")
+dir_big<-file.path("C:/Users/Acer/Documents/big")
 ```
 
 
-*I need to save the csv file into rdf (kind of compress file) since csv have trouble with memory
-define paths for the raw data and layer folder held on my pc Documents folder. (Once the project starts, the path should migrate to a shared database)
-
-# Difference with OHI 2020: Updates from previous assessment 
-*they have already v5 of Watson data. It is stored in Mazu but it is not available from the web yet. The v5 is already structured on roder to avoid extra work on file. probably the years are splitted in different files. I.e. there were no index files to join with the raw data, because they already completed that for us
-* (Previously we had to do extra data prep to match the index files with the raw catch data. In version 5, this prep has been done for us. Now we just need to combine the raw data with geospatial information (sheet name Cells in Codes.xlsx), taxon information (sheet name Taxa in Codes.xlsx), gear (sheet name Gear in Codes.xlsx), and country information (sheet name Country in Codes.xlsx).)
-
-* Version 5 of the data includes years through 2017 (which was previously only 2015). For this assessment we are including the years through 2017 in the fisheries data, as well as the NPP data (which we only previously included through 2015 for). 
-
-
-#```{r setup, include=FALSE}
-#setwd("C:/Users/Serena/Documents/big_sere/watson#")
-#dir_w <- file.path("C:/Users/Serena/Documents/bi#g_sere/watson")
-#```
-
-
-```{r setup, include=FALSE}
-
-
-dir_drive<-file.path()
-
-web_years <- c("Ind1950_1954", "Ind1955_1959", "Ind1960_1964", "Ind1965_1969", 
-               "Ind1970_1974", "Ind1975_1979", "Ind1980_1984", "Ind1985_1989",
-               "Ind1990_1994", "Ind1995_1999", "Ind2000_2004", "Ind2005_2009", 
-               "Ind2010_2014", "Ind2015_2019", "NInd1950_1954", "NInd1955_1959",
-               "NInd1960_1964", "NInd1965_1969", "NInd1970_1974", "NInd1975_1979",
-               "NInd1980_1984", "NInd1985_1989", "NInd1990_1994", "NInd1995_1999", 
-               "NInd2000_2004", "NInd2005_2009", "NInd2010_2014", "NInd2015_2019")
-
-setwd("C:/Users/Acer/Documents/big/fis/watson")
-dir_w <- file.path("C:/Users/Acer/Documents/big/fis/watson")#dove mi salva i file più leggeri rds
-#dir_big<-file.path("G:/Il mio Drive/big_drive/watson")#da dove mi prende grandi file originali di watson
-dir_big<-file.path("C:/Users/Acer/Documents/big/fis/watson")
-list.files(dir_big)
-## Download catch data from web and save into server(to decide)
-#very long process
-for(web_year in web_years){ 
-#web_year <- "Ind1955_1959"#
-data <- read.csv(file.path(dir_big, sprintf("Catch%s.csv", web_year)))
-saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
-}
-
-
-
-
-for(web_year in web_years){ 
-#web_year <- "NInd1950_1954"#I have to change this everytime to save all the different file
-data <- read.csv(sprintf("https://data.imas.utas.edu.au/attachments/5c4590d3-a45a-4d37-bf8b-ecd145cb356d/Catch%s.csv", web_year))
-saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
-}
-
-
-for(web_year in web_years){ 
-#web_year <- "NInd1950_1954"#I have to change this everytime to save all the different file
-data <- read.csv(sprintf("https://data.imas.utas.edu.au/attachments/5c4590d3-a45a-4d37-bf8b-ecd145cb356d/Catch%s.csv", web_year))
-saveRDS(data, file.path(dir_big, sprintf("raw/Catch%s.rds", web_year)))
-}
-
-dir_raw <- file.path("C:/Users/Acer/Documents/big/fis/watson/raw")
-dir_raw
-dir()
-for(web_year in web_years){
-  data<-readRDS(file.path(dir_raw,sprintf("Catch%s.rds", web_year)))
-}
-
-
-#Explore Watson v4
-data1 <- readRDS(file.path(dir_w, "raw/CatchInd1950_1954.rds"))
-str(data1)
-data2 <- readRDS(file.path(dir_w, "CatchInd1955_1959.rds"))
-data3 <- readRDS(file.path(new_rawFolder, "CatchInd2005_2009.rds"))
-}
-```
 
 
 ##Read in Spatial cells, Taxa reference, Country reference, and a single 5-year Catch dataset. 
@@ -152,17 +82,17 @@ I need to create (wrangle) a new combination of the index file to have "ID", "ye
 
 ```{r}
 ###Exploring Watson Fisheries Data
-dir_big<-file.path("C:/Users/Acer/Documents/big/fis/watson")#percorso da aprire da pc ufficio
-indexInd<-read.csv(file.path(dir_big,"IndexInd.csv"))
-indexNInd<-read.csv(file.path(dir_big,"IndexNInd.csv"))
+dir_w<-file.path("C:/Users/Acer/Documents/big/fis/watson")#percorso da aprire da pc ufficio
+indexInd<-read.csv(file.path(dir_w,"IndexInd.csv"))
+indexNInd<-read.csv(file.path(dir_w,"IndexNInd.csv"))
 
-taxa <- read_excel(file.path(dir_big, "Codes.xlsx"), sheet = "Taxa")
-country <- read_excel(file.path(dir_big, "Codes.xlsx"), sheet = "Country")
-gear <- read_excel(file.path(dir_big, "Codes.xlsx"), sheet = "Gear") %>%
+taxa <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Taxa")
+country <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Country")
+gear <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Gear") %>%
   dplyr::select(FGearCode, FleetGearName) %>%
   unique() ## Need to include the gear in this because we will use this for softbottom habitat pressure
 # Spatial cells reference
-spatialCells <- read_excel(file.path(dir_big, "Codes.xlsx"), sheet = "Cell")
+spatialCells <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Cell")
 DT::datatable(head(spatialCells))
 
 
@@ -182,7 +112,7 @@ master[is.na(master)]<-0 #replace the NA value with 0
 
 
 ##Spatial cells reference
-spatialCells<-read_excel(file.path(dir_big, "Codes.xlsx"),sheet="Cell")
+spatialCells<-read_excel(file.path(dir_w, "Codes.xlsx"),sheet="Cell")
 head(spatialCells)
 
 a<-master %>% 
@@ -192,7 +122,7 @@ a<-master %>%
 Test to see whether the values in the Master file are the same as in the catch
 ```{r}
 ##Look at single catch file
-data<-readRDS(file.path(dir_big,"raw/CatchInd1950_1954.rds"))
+data<-readRDS(file.path(dir_w,"raw/CatchInd1950_1954.rds"))
 DT::datatable(head(data))
 
 mex_abalone<-data %>% 
@@ -215,7 +145,7 @@ Tidy Fisheries Files:
   1. Combine the Master Index and Spatial Cells with the CatchInd and CatchNInd files.
   2. Save each year of data as separate file into the intermediate files folder INT  "prep/fis/INT/annual_catch"
 
-  **Function for combining & saving files**: Create function to read in each file name, combine with Index and Cells data frame, and save each year of catch data into separate file in DIR_BIG
+  **Function for combining & saving files**: Create function to read in each file name, combine with Index and Cells data frame, and save each year of catch data into separate file in dir_w
 
 
 ```{r tidy, eval=FALSE}
@@ -246,14 +176,16 @@ combine_fis <- function(x) {
       tools::file_path_sans_ext() %>% 
       str_remove("d.*") # remove everything after the first underscore
     
-    write_rds(single_yr_df, paste0(dir_big,"/INT", ind_Nind, "d_", yr, ".rds"))
+    write_rds(single_yr_df, paste0(dir_w,"/int/annual_catch/", ind_Nind, "d_", yr, ".rds"))
     
   }
   
 }
-"Catch%s.rds"
-combine_fis(file.path(dir_big,"raw/CatchNInd1955_1959.rds")) #check to see if function writes to mazu
+
+
+combine_fis(file.path(dir_w,"raw/CatchInd1960_1964.rds")) #check to see if function writes to mazu
                                                               #ma non interessa che lo faccia in questo momento??
+
 ```
 
 
@@ -263,12 +195,12 @@ combine_fis(file.path(dir_big,"raw/CatchNInd1955_1959.rds")) #check to see if fu
   Create list of industrial catch file names and apply the `combine_fis` function to save each individual 5-year interval catch data.
 
 ```{r, eval=FALSE}
-ind_files <- dir(file.path(dir_big,"/INT"), pattern ="CatchInd", full.names=TRUE)
-dir_big
+ind_files <- dir(file.path(dir_w,"/int/annual_catch/"), pattern ="CatchInd", full.names=TRUE)
+dir_w
 ## Wrangle and Save Each Year of Data Separately
 indCatch <- map_df(ind_files, combine_fis)
 #check to see if function worked properly
-df <- readRDS(file.path(dir_big,"INT/CatchNInd_1950.rds"))
+df <- readRDS(file.path(dir_w,"int/annual_catch/CatchInd_1950.rds"))
 ```
 
 
@@ -278,15 +210,132 @@ df <- readRDS(file.path(dir_big,"INT/CatchNInd_1950.rds"))
 Create list of non-industrial catch file names and apply the `combine_fis` function to save each individual 5-year interval catch data. Then, create a single file that has all years of data.
 
 ```{r, eval=FALSE}
-nind_files <- dir(file.path(dir_big,"/INT"), pattern ="CatchNInd", full.names=TRUE)
+nind_files <- dir(file.path(dir_w,"/int"), pattern ="CatchNInd", full.names=TRUE)
 ## Wrangle and Save Each Year of Data Separately
 nindCatch <- map_df(nind_files, combine_fis)
 #check to see if function worked properly
-df <- readRDS(file.path(dir_big,"/INT/CatchNInd_1950.rds"))
+df <- readRDS(file.path(dir_w,"int/annual_catch/CatchNInd_1950.rds"))
 ```
 
 
 
 
 
+## Create Annual Catch Rasters
 
+We want a landings raster and a discards raster for Industrial (commericial) and Non-Industrial (artisanal) data per year. 
+
+Note: Annual catch per cell contains values in units of kg per km^2^. Since values in `Reported`, `Discards`, `Landings`, and `IUU` are in tonnes, they must be first converted to kg then divided by the `Area` column.
+
+1. Setup 
+```{r annRasters, eval=FALSE}
+library(tidyverse)
+library(parallel)
+library(foreach)
+library(doParallel)
+library(raster)
+library(rasterVis)
+#install.packages("seaaroundus")
+#library(seaaroundus)
+library(RColorBrewer)
+library(cowplot)
+library(stringr)
+
+library(colorspace)
+library(sp)
+registerDoParallel(5) # registering cores for parallel processing
+## color palette
+cols = rev(colorRampPalette(brewer.pal(11, 'Spectral'))(255)) # rainbow color scheme
+mytheme=rasterTheme(region=cols)
+## Set template ocean raster and mollweide projection CRS
+ocean <- raster::raster(file.path(dir_big, '/spatial_ohi_supplement/ocean.tif'))
+mollCRS=crs('+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs')
+options(scipen=999)
+```
+
+2. First get the template raster with a resolution of 0.5 degree cells, from the cells data.
+
+The values of these cells are the Cell ID numbers.
+
+```{r, eval=FALSE}
+#create a raster of Cell numbers
+## This Codes.xlsx was downloaded from the same place as the raw Watson data.
+cells <- read_excel(file.path(dir_w, "Codes.xlsx"), sheet = "Cell") %>%
+  dplyr::rename(x = LonCentre,  y = LatCentre, z = Cell) %>% #I renamed these xyz to use in the rasterFromXYZ() function below
+  dplyr::select(x,y,z)
+#turn the lat/long points into a raster
+cells_raster <- rasterFromXYZ(cells)
+crs(cells_raster) <- "+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0" 
+crs(cells_raster)
+#check out the cells raster to make sure it looks good
+plot(cells_raster)
+```
+
+3. Create commercial and artisanal rasters
+
+* comm_landings_XXXX.tif
+* comm_discards_XXXX.tif
+* artisanal_landings_XXXX.tif
+* artisanal_discards_XXXX.tif
+
+Catch data is in tonnes, so need to convert to kg then divide by `OceanAreasqkm` (km^2^) to get catch per area. Since `Cell` is the identifier for a specific 30-min spatial cell, we want to add up total landings and total discards grouped by `Cell`.
+
+Note: Subset for data 2003 and onwards since NPP data starts at 2003. Since we will be taking 5-year averages, we will need years 1999-2003 to get the average value for year 2003.
+
+
+```{r, eval=FALSE}
+## Specify years of data, file locations, raster output location
+years = c(1999:2015)
+rastFolder <- paste0(dir_w,"/int/")
+annual_files <- list.files(paste0(rastFolder, "annual_catch"), full.names=TRUE)
+## Specify a list of arguments - commercial or artisanal - for reading in data and saving raster file name
+raw_suffx <- list(catchind = "CatchInd", catchnind = "CatchNInd")
+rast_prefx <- list(comm = "comm", artisanal = "artisanal")
+## Function for totalling landings/discards and saves raster files 
+catch2raster <- function(raw_suffx,rast_prefx){
+  
+foreach(yr = years) %dopar% { 
+  yr = 1950
+  
+  ## find file path of the respective year of data
+  yr <- as.character(yr)
+  ## Select the respective year of industrial catch data
+  dataname <- str_subset(annual_files, paste0(raw_suffx,"*.",yr))
+  ## read in raw data
+  raw_data <- readRDS(dataname[1])
+head(raw_data)
+  ## Total Landings per Cell
+  landings <- raw_data %>%
+    dplyr::mutate(Landings_CR = (Landings * 1000)/OceanAreasqkm) %>% # convert to catch rate (kg/km^2)
+    dplyr::group_by(Cell) %>%
+    dplyr::summarise(cell_catch = sum(Landings_CR, na.rm=TRUE)) %>% # usually no NAs, but just in case
+    dplyr::ungroup() %>%
+    data.frame()
+ 
+  #length(unique(raw_data$Cell))
+   
+#test what is occurring with cells in v4.0
+#landings_test <- landings %>%
+#  dplyr::arrange(Cell) %>%
+#  dplyr::mutate(lag = lag(Cell)) %>%
+#  dplyr::mutate(difference = Cell - lag)
+  ## Total Discards per Cell
+  discards <- raw_data %>%
+    dplyr::mutate(Discards_CR = (Discards * 1000)/OceanAreasqkm) %>% 
+    dplyr::group_by(Cell) %>%
+    dplyr::summarise(cell_catch = sum(Discards_CR)) %>% 
+    dplyr::ungroup()
+  
+  ## Rasterize Catch: swapping template cell values with those in dataframe
+ raster::subs(cells_raster, landings, by = "Cell", which = "cell_catch", subsWithNA=TRUE, filename = paste0(rastFolder, rast_prefx, '_landings/annual_catch_', yr ,'.tif'), overwrite=TRUE)
+#rast_test <- raster::subs(cells_raster, landings, by = "Cell", which = "cell_catch", subsWithNA=TRUE)
+#writeRaster(rast_test, filename = paste0(rastFolder, "artisanal", "_landings/annual_catch_", yr, ".tif"))
+#plot(rast_test)
+  raster::subs(cells_raster, discards, by = "Cell", which = "cell_catch", subsWithNA=TRUE, 
+               filename = paste0(rastFolder, rast_prefx, '_discards/annual_catch_', yr ,'.tif'), overwrite=TRUE) 
+  
+  }
+}
+## Applies catch2raster function on commercial (industrial) then artisanal (non-industrial) files
+create_rast <- map2(raw_suffx, rast_prefx, catch2raster)
+```
