@@ -32,3 +32,5 @@ dir_w<-file.path("C:/Users/szunino/Documents/big/fis/watson/raw")
 atl_gh<-"https://github.com/serenzun/Atl_ohi"
 atl_ohi<-file.path("C:/Users/szunino/Documents/github/Atl_ohi/prep/FIS/annual_catch/")
 
+##set the memory size (since I'm working on the virtual machine)
+memory.limit(size=56000)

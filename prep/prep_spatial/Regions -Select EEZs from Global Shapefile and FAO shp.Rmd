@@ -24,7 +24,7 @@ library(ggridges)
 library(ggplot2)
 library(tidyverse)
 library(ncdf4)
-
+library(rgeos)
 ```
 
 
@@ -37,8 +37,10 @@ This comes from the sf package and is a preferred method of loading and working 
 ```{r shapefile}
 here()
 
+
+
 setwd("C:/Users/Acer/Documents/big")
-regions_gl <- st_read("~/big/atl_regions/FAO_AREAS.shp", quiet = TRUE)
+regions_gl <- st_read("~/big/atl_regions/Regions_atl_FAO.shp", quiet = TRUE)
 
 head(regions_gl)
 plot(regions_gl[4]) #plot() which column to show, otherwise R will create a plot for every column, which we do not need
@@ -47,7 +49,7 @@ plot(regions_gl[4]) #plot() which column to show, otherwise R will create a plot
 regions_atl_FAO<- regions_gl %>% 
   dplyr::filter(OCEAN == "Atlantic") %>% 
   filter(F_LEVEL=="MAJOR") %>% 
-  select(-13,-14) 
+  dplyr::select(-13,-14) 
   
 #reduce to F_CODE
 plot(regions_atl_FAO[4], key.pos=1)
@@ -81,6 +83,22 @@ library(ncdfgeom)
 library(maptools)
 data(wrld_simpl)
 plot(wrld_simpl)
+
+```
+##Longhurst provinces
+```{r}
+
+lng_gl<-st_read("~/big/Longhurst_world_v4_2010/mapshaper_90/Longhurst_world_v4_2010.shp",quiet=TRUE)#I have simplified the geometry through the mapshaper.org. The problem lies in sme polygons of the baltic sea. 
+
+lng_gl_sp <- as(lng_gl, 'Spatial')
+head(lng_gl_sp)
+crs(lng_gl_sp)
+plot(lng_gl_sp)
+head(lng_gl_sp)
+lng_atl_cr<-raster::crop(lng_gl_sp,reg_atl_FAO_sp)
+plot(lng_atl_cr)
+head(lng_atl_cr)
+lng_atl_mk<-raster::mask(lng_atl_cr,reg_atl_FAO_sp)
 
 ```
 
