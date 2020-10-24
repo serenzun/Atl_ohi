@@ -6,8 +6,8 @@ output: html_document
 ---
 
 # New Global Fisheries Catch Data - Watson data
-(script derived from: globalprep/prs_fish/v2020/data_download.Rmd)
-
+(script derived from: Download:globalprep/prs_fish/v2020/data_download.Rmd)
+Wrangle: ohiprep_v2020/globalprep/fis/v2019/fishing_pressure_layers.Rmd)
 # Summary
 
 The commercial fishing layers are created from spatialized catch (by gear??) data provided by Watson (2019)
@@ -132,8 +132,6 @@ mex_abalone<-data %>%
 master_check<-master %>% 
   dplyr::filter(ID==2739)
 
-datatable(head(mex_abalone))
-head(master_check)
 ```
 
 
@@ -149,8 +147,10 @@ Tidy Fisheries Files:
 
 
 ```{r tidy, eval=FALSE}
+here()
+setwd("C:/Users/Acer/Documents/big/fis/watson")
 combine_fis <- function(x) {
-  #x <- file.path(rawFolder, "CatchNInd2010_2014.rds")
+  #x <- file.path(dir_w, "/raw/CatchNInd2010_2014.rds")
   
   ## Read in the catch data
   ## Create a total Landings column
@@ -182,9 +182,9 @@ combine_fis <- function(x) {
   
 }
 
-
-combine_fis(file.path(dir_w,"raw/CatchInd1960_1964.rds")) #check to see if function writes to mazu
-                                                              #ma non interessa che lo faccia in questo momento??
+dir_raw<-file.path("C:/Users/Acer/Documents/big/fis/watson/raw")#percorso da aprire da pc 
+combine_fis(file.path(dir_raw,"CatchInd1955_1959.rds")) #check to see if function writes to mazu
+                                                                                                          z#ma non interessa che lo faccia in questo momento??
 
 ```
 
@@ -196,11 +196,10 @@ combine_fis(file.path(dir_w,"raw/CatchInd1960_1964.rds")) #check to see if funct
 
 ```{r, eval=FALSE}
 ind_files <- dir(file.path(dir_w,"/int/annual_catch/"), pattern ="CatchInd", full.names=TRUE)
-dir_w
 ## Wrangle and Save Each Year of Data Separately
 indCatch <- map_df(ind_files, combine_fis)
 #check to see if function worked properly
-df <- readRDS(file.path(dir_w,"int/annual_catch/CatchInd_1950.rds"))
+df <- readRDS(file.path(dir_w,"int/annual_catch/CatchInd_1953.rds"))
 ```
 
 
@@ -295,15 +294,14 @@ rast_prefx <- list(comm = "comm", artisanal = "artisanal")
 catch2raster <- function(raw_suffx,rast_prefx){
   
 foreach(yr = years) %dopar% { 
-  yr = 1950
-  
+  yr = 1952
   ## find file path of the respective year of data
   yr <- as.character(yr)
   ## Select the respective year of industrial catch data
   dataname <- str_subset(annual_files, paste0(raw_suffx,"*.",yr))
   ## read in raw data
   raw_data <- readRDS(dataname[1])
-head(raw_data)
+
   ## Total Landings per Cell
   landings <- raw_data %>%
     dplyr::mutate(Landings_CR = (Landings * 1000)/OceanAreasqkm) %>% # convert to catch rate (kg/km^2)
@@ -338,4 +336,19 @@ head(raw_data)
 }
 ## Applies catch2raster function on commercial (industrial) then artisanal (non-industrial) files
 create_rast <- map2(raw_suffx, rast_prefx, catch2raster)
+
+#Error in { : task 1 failed - "non trovo la funzione "str_subset""
 ```
+
+```{r}
+#try to crop large raster with fao raster atl
+regions_atl_FAO <- st_read("~/big/atl_regions/Regions_atl_FAO.shp", quiet = TRUE)
+reg_atl_FAO_sp <- as(regions_atl_FAO, 'Spatial')
+rast_crop_test<-crop(rast_test,reg_atl_FAO_sp)
+rast_mask_test<-mask(rast_crop_test,reg_atl_FAO_sp)
+
+
+cols = rev(colorRampPalette(brewer.pal(11, 'Spectral'))(255)) # rainbow color scheme
+plot(rast_mask_test, col=cols)
+```
+
