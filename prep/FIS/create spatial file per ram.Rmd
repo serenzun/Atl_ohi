@@ -1,0 +1,294 @@
+---
+title: "OHI 2017 - Food Provision: Preparing RAM B/Bmsy data"
+author: "*Compiled on `r date()` by `r Sys.info()['user']`*"
+output: 
+  html_document:
+    code_folding: show
+    toc: true
+    toc_depth: 1
+    toc_float: yes
+    number_sections: false
+    theme: cerulean
+    highlight: haddock
+    includes: 
+      in_header: '../../../src/templates/ohi_hdr.html'
+pdf_document:
+  toc: true
+---
+
+# Summary
+
+This script prepares the RAM B/Bmsy data:
+1. Relevant data are collected from the RAM database
+2. Missing years are gapfilled when appropriate
+3. RAM and SAUP species names are harmonized in a few cases
+4. RAM stocks are associated with the corresponding OHI and FAO regions
+
+
+## Updates from previous assessment
+Data describing the spatial boundaries of the RAM stocks were not 
+
+## Identify FAO and OHI regions for RAM stocks
+
+Here we identify the FAO/OHI regions where each RAM stock is located.  This involved the following steps:
+
+1. Create a intersection map that identifies each FAO/OHI region.
+2. Overlay each of the RAM stocks on the region map to determine where they fall.  There were 2 general challenges to doing this.  A few of the stocks did not have a complete dataframe in the shapefile and could not be joined to the other data.  A few stocks had intersecting polygons and consequently would not run.  In the first case, I added these data by hand later in the process.  For the second case, I fixed the intersections and added later.  
+
+##fis/int/2019-2018 hanno cambianto da assessid to stockid. però fanno riferimento cmq al lavoro dell'anno rpecedente che non trovo:
+Each stock needs the corresponding ohi and fao regions associated with its range.  For the most part, we can use the data from last year, and add the data for the new regions.  However, the old data uses "assessid", but we now need to replace this with the stock id and stock long because assessid is no longer used in the new version of the data.  The stock long and stock id  is obtained from the old RAM B/Bmsy data and merged with the RAM_fao_ohi_rgn data (done below).
+
+
+```{r RAM to OHI_FAO rgn, eval = FALSE}
+library(here)
+source(here("R", "setup.R"))
+RAM_spatial_dir <- file.path(dir_B, "prep/fis/raw/RAM/ramldb_boundaries") 
+
+ram_sf <- list.files(RAM_spatial_dir, pattern = "shp")
+
+ram_sf <- gsub(".shp", "", ram_sf)
+
+  ram_sf <- intersect(ram_bmsy_gf$stockid, ram_sf) # get these spatial data
+## get a sample file to convert other spatial data
+
+tmp<-read_sf(dsn=RAM_spatial_dir, layer=ram_sf[1])
+
+
+setdiff(ram_sf, ram_bmsy_gf$stockid) ## stocks with variables other than b/bmsy
+setdiff(ram_bmsy_gf$stockid, ram_sf) ## oh goody!  all the b/bmsy stocks have corresponding maps!  Awesome!
+ram_sf <- intersect(ram_bmsy_gf$stockid, ram_sf) # get these spatial data
+
+# get rid of some weird ones with issues (will add by hand at end)
+# missing dataframe
+ram_sf <- ram_sf[-which(ram_sf == "SEFSC-BLACKGROUPERGMSATL-1986-2008-THORSON")] 
+ram_sf <- ram_sf[-which(ram_sf == "SEFSC-BSBASSSATL-1950-2010-HIVELY")] 
+ram_sf <- ram_sf[-which(ram_sf == "SEFSC-RGROUPSATL-1976-2009-HIVELY")] 
+ram_sf <- ram_sf[-which(ram_sf == "SEFSC-RPORGYSATLC-1972-2012-HIVELY")]
+ram_sf <- ram_sf[-which(ram_sf == "SEFSC-RSNAPSATLC-1954-2010-HIVELY")]
+ram_sf <- ram_sf[-which(ram_sf == "SEFSC-SNOWGROUPSATLC-1974-2013-HIVELY")]
+ram_sf <- ram_sf[-which(ram_sf == "SEFSC-TILESATLC-1961-2011-HIVELY")]
+ram_sf <- ram_sf[-which(ram_sf == "SEFSC-VSNAPSATLC-1945-2012-HIVELY")]
+
+
+#self_intersection
+ram_sf <- ram_sf[-which(ram_sf == "AFSC-GHALBSAI-1960-2015-HIVELY")]
+ram_sf <- ram_sf[-which(ram_sf == "NEFSC-HAD5Y-1964-2011-CHING")]
+ram_sf <- ram_sf[-which(ram_sf == "AFSC-SABLEFEBSAIGA-1958-2010-STACHURA")]
+ram_sf <- ram_sf[-which(ram_sf == "NEFSC-SCALL5ZMAB-1964-2013-HIVELY")]
+ram_sf <- ram_sf[-which(ram_sf == "NEFSC-WITFLOUN5Y-1982-2008-WIGLEY")]
+
+
+## get a sample file to convert other spatial data
+tmp <- read_sf(dsn = RAM_spatial_dir, layer = ram_sf[1])
+```
+
+## Get OHI Raster/Zonal Data:
+
+* **regions_eez_with_fao_ant.tif** - This includes all the ocean regions (eez/fao/antarctica), but the raster cell values correspond to the rgn_ant_id in regions_2017_update.  This file is most often used to extract pressure values for each region.
+* **regionData.csv** - has data for spatial id's used in raster
+
+#Data Source: https://mazu.nceas.ucsb.edu/data/
+Regions: This folder includes shapefiles in both the Mollweide (regions_mol) and WGS 84 (regions_gcs) coordinate reference systems (Fig. 1). See this primer for more information about coordinate reference systems. These files can be opened in mapping programs such as ArcGIS, GRASS GIS, and R. Table 1 includes information about the data fields included in these shapefiles.
+
+```{r, eval=FALSE}
+## Grab OHI base data for pressures
+zones <- raster(file.path(dir_B, "git-annex/globalprep/spatial/v2017/regions_eez_with_fao_ant.tif")) 
+rgn_data <- read.csv(file.path(dir_M, "git-annex/globalprep/spatial/d2014/data/rgn_mol_raster_1km/regionData.csv"))
+
+
+```{r RAM to OHI_FAO rgn, eval = FALSE}
+##################################
+## Combine OHI and FAO regions
+## get OHI regions and transform
+
+
+
+regions <- read_sf(dsn = file.path(dir_B, "prep/spatial/spatial_ohi_supplement/regions"), layer = "regions_gcs") %>% 
+  filter(rgn_typ!="land") %>% 
+  filter(OCEAN=="ATLANTIC")
+plot(regions)
+regions_atl_FAO <- st_read("~/big/prep/spatial/output/Regions_atl_FAO.shp", quiet = TRUE)
+## get a sample file to convert other spatial data
+tmp <- read_sf(dsn = RAM_spatial_dir, layer = ram_sf[1])
+
+regions_atl_tr <- st_transform(regions_atl_FAO, st_crs(tmp)$epsg)
+regions_tr <- st_transform(regions, st_crs(tmp)$epsg)
+regions_ohi_fao_atl <- st_intersection(regions_tr, regions_atl_tr)
+st_write(regions_ohi_fao_atl, dsn = file.path(dir_B, "prep/spatial/int"), 
+                             layer = "regions_atl_tr", driver = "ESRI Shapefile")
+
+
+
+##I will add the id code of the LME and LNG areas.
+regions_atl_LNG <- st_read("C:/Users/szunino/Documents/github/Atl_ohi/prep/spatial/output/atl_ohi_longhurst.shp", quiet = TRUE)
+regions_lng_tr <- st_transform(regions_atl_LNG, st_crs(tmp)$epsg)
+regions_ohi_fao_lng_atl<-st_intersection(regions_ohi_fao_atl, regions_lng_tr)
+
+
+##regions_atl_sp <- as(regions_atl, "Spatial") # convert to spatial polygons 
+
+## FAO region
+
+#fao_regions <- read_sf(dsn = file.path(dir_M, #"git-annex/Global/NCEAS-Regions_v2014/orig/FAO_AREAS"), layer="FAO_AREAS") %>%
+#  filter(F_LEVEL == "MAJOR")
+str(regions_atl_tr)
+
+st_write(regions_atl_tr, dsn = file.path(dir_B, "prep/spatial/int"), 
+                             layer = "regions_atl_tr", driver = "ESRI Shapefile")
+
+sf::write_sf(regions_atl,paste0(spatial_output),  "Regions_atl.shp", driver = "ESRI Shapefile",overwrite=TRUE)
+############################################
+## Overlay stock data on fao-ohi region data
+
+fao_ohi <- st_read(file.path(dir_M, "git-annex/globalprep/fis/v2017/int"), 
+        layer = "ohi_fao_rgns")
+
+stock_fao_ohi <- NA
+for(stock in ram_sf) {   # stock = ram_sf[85]
+    cat(paste0(stock, "\n"))
+    tmp_poly <- read_sf(dsn = RAM_spatial_dir, layer = stock)
+    tmp_fao_ohi <- st_intersection(fao_ohi, tmp_poly)
+    if(sum(is.na(stock_fao_ohi))==1){
+      stock_fao_ohi <- tmp_fao_ohi
+    }else
+    {stock_fao_ohi <- rbind(stock_fao_ohi, tmp_fao_ohi)}
+}
+
+## Add in stocks that didn't work
+
+## Fix self intersections and add
+intersects <- c("AFSC-GHALBSAI-1960-2015-HIVELY",
+                "NEFSC-HAD5Y-1964-2011-CHING",
+                "AFSC-SABLEFEBSAIGA-1958-2010-STACHURA",
+                "NEFSC-SCALL5ZMAB-1964-2013-HIVELY",
+                "NEFSC-WITFLOUN5Y-1982-2008-WIGLEY")
+
+stock_fao_ohi_intersects <- NA
+for(stock in intersects) {   # stock = intersects[3]
+  cat(paste0(stock, "\n"))
+  tmp_poly <- read_sf(dsn = RAM_spatial_dir, layer = stock)
+  tmp_poly <- st_buffer(tmp_poly, 0.0)
+  tmp_fao_ohi_intersects <- st_intersection(fao_ohi, tmp_poly)
+  if(sum(is.na(stock_fao_ohi_intersects))==1){
+    stock_fao_ohi_intersects <- tmp_fao_ohi_intersects
+  }else
+  {stock_fao_ohi_intersects <- rbind(stock_fao_ohi_intersects, tmp_fao_ohi_intersects)}
+}
+
+stock_fao_ohi_v2 <- rbind(stock_fao_ohi, stock_fao_ohi_intersects) #5940
+
+
+## clean data
+# include only features with area:
+stock_fao_ohi_shps <- stock_fao_ohi_v2[st_dimension(stock_fao_ohi_v2) == 2,] #5904
+
+stock_fao_ohi_shps <- stock_fao_ohi_shps[!is.na(st_dimension(stock_fao_ohi_shps)), ] #5904
+
+## Fix GEOMETRYCOLLECTION features, http://r-spatial.org/r/2017/03/19/invalid.html
+
+type <- st_is(stock_fao_ohi_shps, "GEOMETRYCOLLECTION")
+
+stock_fao_ohi_shps[type, ] <- st_buffer(stock_fao_ohi_shps[type, ], 0.0) 
+
+#check:
+type <- st_is(stock_fao_ohi_shps, "GEOMETRYCOLLECTION")
+
+
+## Get areas in case we want to later weight the data 
+stock_fao_ohi_shps$RAM_area_m2 <- st_area(stock_fao_ohi_shps)
+
+## save spatial file (if concerned about next step, which converts to a csv and loses spatial information):
+# st_write(stock_fao_ohi_shps, dsn = file.path(dir_M, "git-annex/globalprep/fis/v2017/int/RAM"), 
+#         layer = "RAM_fao_ohi_no_incompletes", driver = "ESRI Shapefile")
+
+
+
+## rbindfill these data (missing a lot of the columns for some reason)
+
+incompletes <- c("SEFSC-BLACKGROUPERGMSATL-1986-2008-THORSON", 
+                "SEFSC-BSBASSSATL-1950-2010-HIVELY",
+                "SEFSC-RGROUPSATL-1976-2009-HIVELY",
+                "SEFSC-RPORGYSATLC-1972-2012-HIVELY", 
+                "SEFSC-RSNAPSATLC-1954-2010-HIVELY", 
+                "SEFSC-SNOWGROUPSATLC-1974-2013-HIVELY",
+                "SEFSC-TILESATLC-1961-2011-HIVELY", 
+                "SEFSC-VSNAPSATLC-1945-2012-HIVELY")
+
+stock_fao_ohi_incompletes <- NA
+for(stock in incompletes) {   # stock = incompletes[3]
+  cat(paste0(stock, "\n"))
+  tmp_poly <- read_sf(dsn = RAM_spatial_dir, layer = stock)
+  tmp_fao_ohi_incompletes <- st_intersection(fao_ohi, tmp_poly)
+  tmp_fao_ohi_incompletes$assessid <- stock
+  if(sum(is.na(stock_fao_ohi_incompletes))==1){
+    stock_fao_ohi_incompletes <- tmp_fao_ohi_incompletes
+  }else
+  {stock_fao_ohi_incompletes <- rbind(stock_fao_ohi_incompletes, tmp_fao_ohi_incompletes)}
+}
+
+stock_fao_ohi_incompletes$RAM_area_m2 <- st_area(stock_fao_ohi_incompletes)
+
+stock_fao_ohi_all <- plyr::rbind.fill(stock_fao_ohi_shps, stock_fao_ohi_incompletes) %>%
+  dplyr::select(type_w_ant, rgn_ant_id, F_CODE, assessid, RAM_area_m2) %>%
+  group_by(rgn_ant_id, F_CODE, assessid) %>%
+  summarize(RAM_area_m2 = sum(RAM_area_m2)) %>%
+  rename(rgn_id = rgn_ant_id, fao_id = F_CODE)
+
+write.csv(stock_fao_ohi_all, "int/RAM_fao_ohi_rgns.csv", row.names=FALSE)
+
+
+```
+
+
+## Combine all the data
+
+Final formatting of the data is performed.
+
+```{r final}
+
+ram_spatial <- read.csv("int/RAM_fao_ohi_rgns.csv", stringsAsFactors = FALSE)
+
+ram_meta <- data.frame(meta.data) %>%
+  dplyr::select(assessid, stockid, scientificname)
+
+setdiff(ram_spatial$assessid, ram_meta$assessid) # make sure all the spatial data has corresponding metadata (should be 0)
+
+# join with metadata
+ram_spatial <- ram_spatial %>%
+  left_join(ram_meta, by = "assessid") %>%
+  rename(RAM_species = scientificname)
+
+# correct names in a few cases to match with SAUP names
+ram_name_corr <- read.csv("int/RAM_species_to_SAUP.csv", stringsAsFactors = FALSE) %>%
+  filter(!is.na(SAUP_species))  # SAUP to RAM name conversion
+
+
+ram_spatial <- ram_spatial %>%
+  left_join(ram_name_corr, by="RAM_species") %>%
+  dplyr::mutate(species = ifelse(!is.na(SAUP_species), SAUP_species, RAM_species)) %>%
+  dplyr::select(assessid, stockid_ram = stockid, rgn_id, fao_id, species, RAM_area_m2)
+
+length(unique(ram_spatial$stockid_ram)) # 257 RAM stocks with B/Bmsy data
+
+## filter out the regions that are not in an eez
+ram_spatial <- filter(ram_spatial, rgn_id<250)
+length(unique(ram_spatial$stockid_ram))    # 256 RAM stocks with B/Bmsy data and are found in EEZ regions
+
+
+## Combine RAM spatial data with B/Bmsy data
+
+ram_bmsy <- read.csv("int/ram_stock_bmsy_gf.csv")
+
+ram_data <- ram_spatial %>% 
+  left_join(ram_bmsy_gf, by="assessid") %>%
+  dplyr::mutate(stock_id = paste(species, fao_id, sep="-")) %>%
+  dplyr::mutate(stock_id = gsub(" ", "_", stock_id)) %>%
+  dplyr::filter(!is.na(year)) %>%   ## these are the ones that didn't have enough ram data to make an accurate guess
+  ungroup() %>%
+  dplyr::select(rgn_id, stock_id, assessid, year, RAM_area_m2, ram_bmsy, gapfilled, method) %>%
+  unique()
+
+write.csv(ram_data, "int/ram_bmsy.csv", row.names=FALSE)
+
+
+```
