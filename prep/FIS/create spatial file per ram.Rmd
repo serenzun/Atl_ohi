@@ -38,25 +38,27 @@ Here we identify the FAO/OHI regions where each RAM stock is located.  This invo
 ##fis/int/2019-2018 hanno cambianto da assessid to stockid. però fanno riferimento cmq al lavoro dell'anno rpecedente che non trovo:
 Each stock needs the corresponding ohi and fao regions associated with its range.  For the most part, we can use the data from last year, and add the data for the new regions.  However, the old data uses "assessid", but we now need to replace this with the stock id and stock long because assessid is no longer used in the new version of the data.  The stock long and stock id  is obtained from the old RAM B/Bmsy data and merged with the RAM_fao_ohi_rgn data (done below).
 
+#Run FIS_PREP_RAM.RMD to upload the ram_bsmy_gf file
 
 ```{r RAM to OHI_FAO rgn, eval = FALSE}
 library(here)
 source(here("R", "setup.R"))
+#I will comapre the old ramdl database which contains the columns ID with the spatial file of FREEy
+ram_bmsy_gf_OLD <- read_csv(file.path(dir_B,"prep/fis/raw/int/ram_stock_bmsy_gf_2017.csv"))#prepared in fis_prep_RAM.rmd
 RAM_spatial_dir <- file.path(dir_B, "prep/fis/raw/RAM/ramldb_boundaries") 
 
 ram_sf <- list.files(RAM_spatial_dir, pattern = "shp")
-
 ram_sf <- gsub(".shp", "", ram_sf)
 
-  ram_sf <- intersect(ram_bmsy_gf$stockid, ram_sf) # get these spatial data
+  ram_sf <- intersect(ram_bmsy_gf_OLD$assessid, ram_sf) # get these spatial data
 ## get a sample file to convert other spatial data
 
-tmp<-read_sf(dsn=RAM_spatial_dir, layer=ram_sf[1])
+tmp<-read_sf(dsn=RAM_spatial_dir, layer=ram_sf[2])
 
 
-setdiff(ram_sf, ram_bmsy_gf$stockid) ## stocks with variables other than b/bmsy
-setdiff(ram_bmsy_gf$stockid, ram_sf) ## oh goody!  all the b/bmsy stocks have corresponding maps!  Awesome!
-ram_sf <- intersect(ram_bmsy_gf$stockid, ram_sf) # get these spatial data
+setdiff(ram_sf, ram_bmsy_gf_OLD$assessid) ## stocks with variables other than b/bmsy
+setdiff(ram_bmsy_gf_OLD$assessid, ram_sf) ## oh goody!  all the b/bmsy stocks have corresponding maps!  Awesome!
+ram_sf <- intersect(ram_bmsy_gf_OLD$assessid, ram_sf) # get these spatial data
 
 # get rid of some weird ones with issues (will add by hand at end)
 # missing dataframe
@@ -103,9 +105,8 @@ rgn_data <- read.csv(file.path(dir_M, "git-annex/globalprep/spatial/d2014/data/r
 
 
 
-regions <- read_sf(dsn = file.path(dir_B, "prep/spatial/spatial_ohi_supplement/regions"), layer = "regions_gcs") %>% 
-  filter(rgn_typ!="land") %>% 
-  filter(OCEAN=="ATLANTIC")
+regions <- read_sf(dsn = file.path(dir_B, "prep/spatial/spatial_ohi_supplement/regions"), layer = "regions_gcs") %>%   
+  filter(rgn_typ %in% c("eez","fao")) 
 plot(regions)
 regions_atl_FAO <- st_read("~/big/prep/spatial/output/Regions_atl_FAO.shp", quiet = TRUE)
 ## get a sample file to convert other spatial data
@@ -114,16 +115,20 @@ tmp <- read_sf(dsn = RAM_spatial_dir, layer = ram_sf[1])
 regions_atl_tr <- st_transform(regions_atl_FAO, st_crs(tmp)$epsg)
 regions_tr <- st_transform(regions, st_crs(tmp)$epsg)
 regions_ohi_fao_atl <- st_intersection(regions_tr, regions_atl_tr)
+head(regions_ohi_fao_atl)
 st_write(regions_ohi_fao_atl, dsn = file.path(dir_B, "prep/spatial/int"), 
                              layer = "regions_atl_tr", driver = "ESRI Shapefile")
 
-
+st_read(regions_ohi_fao_atl, dsn = file.path(dir_B, "prep/spatial/int"), 
+                             layer = "regions_atl_tr")
 
 ##I will add the id code of the LME and LNG areas.
 regions_atl_LNG <- st_read("C:/Users/szunino/Documents/github/Atl_ohi/prep/spatial/output/atl_ohi_longhurst.shp", quiet = TRUE)
 regions_lng_tr <- st_transform(regions_atl_LNG, st_crs(tmp)$epsg)
 regions_ohi_fao_lng_atl<-st_intersection(regions_ohi_fao_atl, regions_lng_tr)
 
+st_write(regions_ohi_fao_lng_atl, dsn = file.path(dir_B, "prep/spatial/int"), 
+                             layer = "regions_ohi_fao_lng_atl", driver = "ESRI Shapefile")
 
 ##regions_atl_sp <- as(regions_atl, "Spatial") # convert to spatial polygons 
 

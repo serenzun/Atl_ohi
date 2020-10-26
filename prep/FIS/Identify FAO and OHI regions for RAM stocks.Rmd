@@ -40,7 +40,7 @@ library(stringr)
 library(here) 
 setwd(here::here("globalprep","fis","v2020"))
 
-source('../../../workflow/R/common.R')
+source(here::here("R","setup.R"))
 
 ```
 
