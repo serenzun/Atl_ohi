@@ -24,15 +24,11 @@ library(cowplot)
 library(stringr)
 library(colorspace)
 
-##Directories:
-#dir_prep<-here::here("prep")
-dir_B<-file.path("C:/Users/szunino/Documents/big") #virtual machine
+#for the directories run the appropriate directories file
 
-rastFolder <- file.path("C:/Users/szunino/Documents/github/Atl_ohi/prep/FIS/annual_catch/")
-
-atl_gh<-"https://github.com/serenzun/Atl_ohi"
-atl_ohi<-file.path("C:/Users/szunino/Documents/github/Atl_ohi/prep/FIS/annual_catch/")
-
+## color palette
+cols = rev(colorRampPalette(brewer.pal(11, 'Spectral'))(255)) # rainbow color scheme
+mytheme=rasterTheme(region=cols)
 #<<<<<<< HEAD
 ###set the memory size (since I'm working on the virtual machine)
 #memory.limit(size=56000)
