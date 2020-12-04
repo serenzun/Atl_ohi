@@ -24,9 +24,9 @@ atl_mask_hr_cr<-crop(atl_mask_highres_cr, atl_mask_highres)
 atl_mask_high_cr_mk_rsm<-raster::resample(atl_mask_highres,atl_mask_highres_cr, resample="bilinear") 
 plot(atl_mask_high_cr_mk_rsm)
 extent(atl_mask_high_cr_mk_rsm)
-atl_mask_hr_mk<-mask(atl_mask_high_cr_mk_rsm, atl_mask_highres_cr)
+#atl_mask_hr_mk<-mask(atl_mask_high_cr_mk_rsm, atl_mask_highres_cr)
 a<-atl_mask_hr_mk
 extent(a)
 
-atl_mask_hgres_ocean<-writeRaster(atl_mask_high_cr_mk_rsm,)
+atl_mask_hgres_ocean<-writeRaster(dir_B,"spatial/atl_mask_high_cr_mk_rsm")
 ```
