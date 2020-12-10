@@ -3,7 +3,7 @@ title: "prep_layer_fao"
 output: html_document
 ---
 
-```{r}
+```{r, include=FALSE}
 
 source(here::here("R","setup.R"))
 
@@ -14,8 +14,11 @@ source(here::here("R","setup.R"))
 
 ocean<-raster(file.path(dir_B,"prep/spatial/spatial_ohi_supplement/ocean.tif"))
 
+rgns_atl_mol<-st_read("~/big/prep/spatial/qgis/fao_alt_mol.shp") %>% #I've changed the crs in qgis
+dplyr::select(c(1,15:16))
 
-
+grid_1_atl_mol<- st_read("~/big/prep/spatial/qgis/grid_1_atl_moll.shp", quiet = TRUE) %>% #prepared with qgis. create grid over atl shp in moll crs
+  dplyr::select(c(1,12))
 
 res(atl_mask_highres)
 res(ocean)
@@ -29,7 +32,7 @@ atl_mask_hr_cr<-crop(atl_mask_highres_cr, atl_mask_highres)
  atl_mask_hr_mk<-mask(atl_mask_hr_cr, atl_mask_highres)
  
  library(raster)
-atl_mask_high_cr_mk_rsm<-raster::resample(atl_mask_highres,atl_mask_highres_cr, resample="bilinear") 
+atl_mask_high_cr_mk_rsm<-raster::resample(atl_mask_highres,atl_mask_highres_cr, resample="bilinear") #??cosa ho gfatto?
 plot(atl_mask_high_cr_mk_rsm)
 extent(atl_mask_high_cr_mk_rsm)
 #atl_mask_hr_mk<-mask(atl_mask_high_cr_mk_rsm, atl_mask_highres_cr)
@@ -42,6 +45,7 @@ atl_mask_highres<-raster(file.path(here("prep/spatial/output/atl_highres_mask.ti
 ```
 
 ```{r fao_atl_shapefile}
+#unuful since I wasn't able to change the crs properl (possibly due to an update in sf package)
 regions_mol <- st_read("~/big/prep/spatial/spatial_ohi_supplement/regions/regions_mol.shp", quiet = TRUE)
 library(maptools)
 
@@ -57,7 +61,7 @@ rgns_atl<- regions_gl %>%
   dplyr::select(-13,-14) #delete the france and spanish denomination
 crs(regions_mol)<-crs(rgns_atl)
 rgns_atl_fao_mol<-st_transform(rgns_atl, CRS("+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"))#st_transform because the shp is read as a dataframe
-crs(rgns_atl_fao_mol)
+CRS(rgns_atl_fao_mol)
 
 
 reg_atl_FAO_sp <- as(regions_atl_FAO, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
@@ -79,16 +83,24 @@ grid_1<-fasterize::fasterize(grid_1_atl_mol, atl_mask_highres, field="fid")#non 
 grid_1_atl_mol<-writeRaster(grid_1, file.path(dir_B, "/prep/spatial/output/grid_1_atl_mol.tif"))#grid of 1 degree in mollweild proj. need to extract pressure data for the atlantic ocean
 ```
 
+#st_join
+https://r-spatial.github.io/sf/reference/st_join.html
 
 ```{r intersect the 2 shop to obrtain attrbbiutes of rgns}
 #try to intersect the grid with the FAO regions
-WKT <- CRS("+proj=moll")
 
-grid_atl<-sf::st_join(rgns_atl_fao_mol,grid_1_atl_mol)
-st_transform(rgns_atl_fao, "+proj=moll")
-CRS(grid_1_atl_mol)==CRS(rgns_atl_fao_mol)
+grid_atl<-sf::st_join(rgns_atl_mol,grid_1_atl_mol)
+grid_atl<-sf::st_join(grid_1_atl_mol,rgns_atl_mol)#added fao attributes to the 1 degree grid 
+
+head(grid_atl)
 #recall the file of the FAO regions in moll coordinates:
+rgdal::writeOGR(grid_atl, dsn="/prep/spatial", layer="grid_atl",driver = "ESRI Shapefile")
+object.size(grid_1_atl_mol)
+object.size(rgns_atl_mol)
+memory.limit(size=20000)
+st_write(grid_atl, dsn="~/big/prep/spatial/output", layer="grid_atl", driver = "ESRI Shapefile")
 
+                        write_csv(grid_atl_mrg_fao, file.path(dir_B, "spatial/output/grid_atl_mrg_fao.csv"))
 ```
 
 
