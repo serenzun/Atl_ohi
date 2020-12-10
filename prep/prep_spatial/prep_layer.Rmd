@@ -3,10 +3,18 @@ title: "prep_layer_fao"
 output: html_document
 ---
 
+```{r}
+
+source(here::here("R","setup.R"))
+
+```
 
 
 ```{r setup, include=FALSE}
+
 ocean<-raster(file.path(dir_B,"prep/spatial/spatial_ohi_supplement/ocean.tif"))
+
+
 
 
 res(atl_mask_highres)
@@ -30,4 +38,68 @@ extent(a)
 
 #atl_mask_hgres_ocean<-writeRaster(dir_B,"spatial/atl_mask_high_cr_mk_rsm")
 atl_mask_highres<-raster(file.path(here("prep/spatial/output/atl_highres_mask.tif")))
+
 ```
+
+```{r fao_atl_shapefile}
+regions_mol <- st_read("~/big/prep/spatial/spatial_ohi_supplement/regions/regions_mol.shp", quiet = TRUE)
+library(maptools)
+
+regions_gl <- st_read("~/big/prep/spatial/atl_regions/FAO_AREAS.shp", quiet = TRUE,crs=(mollCRS))
+
+head(regions_gl)
+plot(regions_gl[4]) #plot() which column to show, otherwise R will create a plot for every column, which we do not need
+
+# filter the regions you want:
+rgns_atl<- regions_gl %>% 
+  dplyr::filter(OCEAN == "Atlantic") %>% 
+ # filter(F_LEVEL=="MAJOR") %>% 
+  dplyr::select(-13,-14) #delete the france and spanish denomination
+crs(regions_mol)<-crs(rgns_atl)
+rgns_atl_fao_mol<-st_transform(rgns_atl, CRS("+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"))#st_transform because the shp is read as a dataframe
+crs(rgns_atl_fao_mol)
+
+
+reg_atl_FAO_sp <- as(regions_atl_FAO, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+reg_atl_FAO_sp_moll<-spTransform(reg_atl_FAO_sp,crs(mollCRS))
+```
+
+
+```{r 0.25-1 from CMEMS- qgis}
+grid_1_atl_mol<- st_read("~/big/prep/spatial/qgis/grid_1_atl_moll.shp", quiet = TRUE)
+
+
+grid_1_atl_sp_mol <- as(grid_1_atl_mol, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+
+
+#### use the old mask as a template for projection, origin, extents, and resolution
+
+grid_1<-fasterize::fasterize(grid_1_atl_mol, atl_mask_highres, field="fid")#non si capiscie perch non viglai grid:1:atl-mol_sp
+
+grid_1_atl_mol<-writeRaster(grid_1, file.path(dir_B, "/prep/spatial/output/grid_1_atl_mol.tif"))#grid of 1 degree in mollweild proj. need to extract pressure data for the atlantic ocean
+```
+
+
+```{r intersect the 2 shop to obrtain attrbbiutes of rgns}
+#try to intersect the grid with the FAO regions
+WKT <- CRS("+proj=moll")
+
+grid_atl<-sf::st_join(rgns_atl_fao_mol,grid_1_atl_mol)
+st_transform(rgns_atl_fao, "+proj=moll")
+CRS(grid_1_atl_mol)==CRS(rgns_atl_fao_mol)
+#recall the file of the FAO regions in moll coordinates:
+
+```
+
+
+
+
+```{r 0.25-1 from CMEMS- qgis}
+#the grid that I extract from cmems do not work. I used again qgis to reproject the grid to mollweild projection. 
+grid_025_cmems_atl <- st_read("~/big/prep/spatial/qgis/grid_025_cmems_atl.shp", quiet = TRUE)
+grid_025_cmems_atl_sp <- as(grid_025_cmems_atl, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+
+system.time(extr <- raster::extract(nppAvg_m,grid_025_cmems_atl_sp,method='simple'))
+
+```
+
