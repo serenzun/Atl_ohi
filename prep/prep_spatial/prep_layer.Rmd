@@ -28,5 +28,10 @@ extent(atl_mask_high_cr_mk_rsm)
 a<-atl_mask_hr_mk
 extent(a)
 
-atl_mask_hgres_ocean<-writeRaster(dir_B,"spatial/atl_mask_high_cr_mk_rsm")
+atl_mask_hgres_ocean<-writeRaster(atl_mask_high_cr_mk_rsm,filename=file.path(dir_B,("prep/spatial/atl_highres_mask.tif")))
+
+here()
+atl_mask_hgres_ocean<-writeRaster(atl_mask_high_cr_mk_rsm,filename=here::here("/prep/spatial/output/atl_highres_mask.tif"))
+
+
 ```
