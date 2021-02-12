@@ -1,8 +1,5 @@
 #Common workflow
 
-install.packages("sf",configure.args = c(sf = "--with-proj-lib=/cineca/prod/opt/libraries/proj4/7.2.0/intel--pe-xe-2018--binary/lib64 --with-proj-include=/cineca/prod/opt/libraries/proj4/7.2.0/intel--pe-xe-2018--binary/include"))
-bash: syntax error near unexpected token `"sf",configure.args'
-
 ##Libraries:
 library(tidyverse)
 library(purrr)
@@ -29,7 +26,7 @@ library(colorspace)
 
 #for the directories run the appropriate directories file
 
-# color palette
+## color palette
 cols = rev(colorRampPalette(brewer.pal(11, 'Spectral'))(255)) # rainbow color scheme
 mytheme=rasterTheme(region=cols)
 #<<<<<<< HEAD
@@ -39,3 +36,5 @@ mytheme=rasterTheme(region=cols)
 ##Spatial files
 #>>>>>>> 34356ef819cd2f03894c741cae40a1cba0dc658c
 #
+
+insta
