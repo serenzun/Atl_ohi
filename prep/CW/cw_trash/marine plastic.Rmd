@@ -191,10 +191,10 @@ weight_moll_1km = raster(file.path(data_wd,'tmp/weight_sum_moll_1km.tif'))
 ## Log Transform
 ```{r log, warning=F,message=F}
 
-#     w_log = calc(weight_mask,fun=function(x){log(x+1)},filename=file.path(data_wd,'v2015/tmp/weight_sum_moll_1km_clip_log.tif'),overwrite=T)
+    w_log = calc(weight_mask,fun=function(x){log(x+1)},filename=file.path(data_wd,'tmp/weight_sum_moll_1km_clip_log.tif'),overwrite=T)
     c_log = calc(count_mask,fun=function(x){log(x+1)},filename=file.path(data_wd,'/tmp/count_sum_moll_1km_clip_log.tif'),overwrite=T)
 
-    w_log = raster(file.path(data_wd,'v2015/tmp/weight_sum_moll_1km_clip_log.tif'))
+    w_log = raster(file.path(data_wd,'tmp/weight_sum_moll_1km_clip_log.tif'))
     c_log = raster(file.path(data_wd,'/tmp/count_sum_moll_1km_clip_log.tif'))
     
     plot(w_log,col=cols,main='Weight density\nlog(g/km2)')
@@ -208,6 +208,7 @@ The reference point is the 99.99th quantile of the data.
 w_ref = quantile(w_log,prob=c(0.001,0.01,0.1,0.25,0.5,0.75,0.9,0.99,0.999,0.9999))
 c_ref = quantile(c_log,prob=c(0.001,0.01,0.1,0.25,0.5,0.75,0.9,0.99,0.999,0.9999))
 
+w_ref=quantile(w_log, prob=c(0.9999))
 w_99 = w_ref[10]
 c_99 = c_ref[10]
 
@@ -219,10 +220,10 @@ histogram(c_log,main='Count density (log(pieces/km2))')
 
 Using the reference point, rescale the data so that all values are between 0 and 1.
 ```{r rescale, message=F,warning=F}
-# w_rescale = calc(w_log,fun=function(x){ifelse(x>w_99,1,x/w_99)},filename=file.path(data_wd,'v2015/output/weight_rescale.tif'),overwrite=T)
+ w_rescale = calc(w_log,fun=function(x){ifelse(x>w_99,1,x/w_99)},filename=file.path(data_wd,'output/weight_rescale.tif'),overwrite=T)
 
 w_rescale = raster(file.path(data_wd,'/output/weight_rescale.tif'))
-#raster:plot(w_rescale,main='Pressure layer: weight density (g/km2)',col=cols)
+raster:plot(w_rescale,main='Pressure layer: weight density (g/km2)',col=cols)
 
 c_rescale = calc(c_log,fun=function(x){ifelse(x>c_99,1,x/c_99)},filename=file.path(data_wd,'output/count_rescale.tif'),overwrite=T)
 
