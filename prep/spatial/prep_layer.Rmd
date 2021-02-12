@@ -1,0 +1,169 @@
+---
+title: "prep_layer_fao"
+output: html_document
+---
+
+```{r setup}
+
+source(here::here("R","setup.R"))
+
+```
+
+
+```{r setup, include=FALSE}
+ocean<-raster(file.path(dir_B,"prep/spatial/spatial_ohi_supplement/ocean.tif"))
+atl_mask_highres<-raster(file.path(here("prep/spatial/output/atl_highres_mask.tif")))
+crs(atl_mask_highres)
+crs(ocean)=crs(atl_mask_highres)
+extent(atl_mask_highres)
+
+rgns_atl_mol<-st_read("~/big/prep/spatial/qgis/fao_alt_mol.shp") %>% #I've changed the crs in qgis
+dplyr::select(c(1,15:16))
+
+grid_1_atl_mol<- st_read("~/big/prep/spatial/qgis/grid_1_atl_moll.shp", quiet = TRUE)%>%   dplyr::select(c(1,12)) #prepared with qgis. create grid over atl shp in moll crs
+
+```
+
+
+```{r setup, include=FALSE}
+#r intersect the 2 shop to obrtain attrbbiutes of rgns try to intersect the grid with the FAO regions
+grid_atl<-sf::st_join(rgns_atl_mol,grid_1_atl_mol)
+#grid_atl<-sf::st_join(grid_1_atl_mol,rgns_atl_mol)#added fao attributes to the 1 degree grid 
+
+head(grid_atl)
+
+#grid_atl_mol<-fasterize::fasterize(grid_atl,atl_mask_highres, field="fid")
+
+#recall the file of the FAO regions in moll coordinates:
+rgdal::writeOGR(grid_atl, dsn="/prep/spatial", layer="grid_atl",driver = "ESRI Shapefile")
+object.size(grid_1_atl_mol)
+object.size(rgns_atl_mol)
+memory.limit(size=70000)
+write.csv(grid_atl,"~/big/prep/spatial/output/.csv")
+
+grid_atl_sp<-as(st_sfc(grid_atl), "spatial")
+st_write(grid_atl, dsn="~/big/prep/spatial/output", layer="grid_atl", driver = "ESRI Shapefile")#too big I need Galileo to run this script--> but Galileo need an update of r and rstudio and I need to install sf packages
+
+                       
+rgns_grid<-grid_atl %>% st_set_geometry(NULL)
+class(rgns_grid)
+write.csv(rgns_grid,"~/big/prep/spatial/output/rgns_grid.csv")
+
+```
+
+
+```{r setup}
+res(atl_mask_highres)
+res(ocean)
+extent(ocean)
+extent(atl_mask_highres)
+extent(atl_mask_highres_cr)
+atl_mask_highres_cr<-crop(ocean,atl_mask_highres)
+extent(atl_mask_highres_cr)
+plot(atl_mask_highres_cr)
+atl_mask_hr_cr<-crop(atl_mask_highres_cr, atl_mask_highres)
+ atl_mask_hr_mk<-mask(atl_mask_hr_cr, atl_mask_highres)
+ 
+ library(raster)
+atl_mask_high_cr_mk_rsm<-raster::resample(atl_mask_highres,atl_mask_highres_cr, resample="bilinear") #??cosa ho gfatto?
+plot(atl_mask_high_cr_mk_rsm)
+extent(atl_mask_high_cr_mk_rsm)
+#atl_mask_hr_mk<-mask(atl_mask_high_cr_mk_rsm, atl_mask_highres_cr)
+a<-atl_mask_hr_mk
+extent(a)
+
+#atl_mask_hgres_ocean<-writeRaster(dir_B,"spatial/atl_mask_high_cr_mk_rsm")
+atl_mask_highres<-raster(file.path(here("prep/spatial/output/atl_highres_mask.tif")))
+crs(atl_mask_highres)
+```
+
+```{r fao_atl_shapefile}
+#unuful since I wasn't able to change the crs properl (possibly due to an update in sf package)
+regions_mol <- st_read("~/big/prep/spatial/spatial_ohi_supplement/regions/regions_mol.shp", quiet = TRUE)
+library(maptools)
+
+regions_gl <- st_read("~/big/prep/spatial/atl_regions/FAO_AREAS.shp", quiet = TRUE,crs=(mollCRS))
+
+head(regions_gl)
+plot(regions_gl[4]) #plot() which column to show, otherwise R will create a plot for every column, which we do not need
+
+# filter the regions you want:
+rgns_atl<- regions_gl %>% 
+  dplyr::filter(OCEAN == "Atlantic") %>% 
+ # filter(F_LEVEL=="MAJOR") %>% 
+  dplyr::select(-13,-14) #delete the france and spanish denomination
+crs(regions_mol)<-crs(rgns_atl)
+rgns_atl_fao_mol<-st_transform(rgns_atl, CRS("+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"))#st_transform because the shp is read as a dataframe
+CRS(rgns_atl_fao_mol)
+
+
+#import shp for the regions
+regions_atl_FAO <- st_read(file.path(atl,"prep/spatial/tmp/Regions_atl_FAO.shp"))
+reg_atl_FAO_sp <- as(regions_atl_FAO, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+reg_atl_FAO_sp
+plot(reg_atl_FAO_sp)
+
+
+reg_atl_FAO_sp <- as(regions_atl_FAO, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+reg_atl_FAO_sp_moll<-spTransform(reg_atl_FAO_sp,crs(mollCRS))
+
+crs(reg_atl_FAO_sp_moll)=crs(atl_mask_highres)
+extent(reg_atl_FAO_sp_moll)=extent(atl_mask_highres)
+library(fasterize)
+zones_fao = rasterize(reg_atl_FAO_sp_moll,atl_mask_highres, field = reg_atl_FAO_sp_moll@data$ID 
+, filename='~/big/prep/spatial/output/zones_fao.tif', overwrite=TRUE)
+
+
+```
+
+
+```{r 1 from CMEMS- qgis}
+grid_1_atl_mol<- st_read("~/big/prep/spatial/qgis/grid_1_atl_moll.shp", quiet = TRUE)
+
+#copy into the atl/apatial/output
+grid_1_cmems_atl<-st_read(here::here("prep", "spatial", "output", "grid_1_cmems_atl.shp"))
+
+grid_1_atl_sp_mol <- as(grid_1_atl_mol, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+
+
+#### use the old mask as a template for projection, origin, extents, and resolution
+
+grid_1<-rasterize(grid_1_atl_sp_mol , atl_mask_highres, field="fid")
+
+#writeRaster(grid_1, file.path(atl, "/prep/spatial/output/grid_1.tif"), format='GTiff', overwrite=TRUE)#grid of 1 degree in mollweild proj. need to extract pressure data for the atlantic ocean
+
+
+
+#writeOGR(grid_1_cmems_atl_sp, filename=file.path(atl,'prep/spatial/output/grid_1_cmems_atl_sp.tiff'), format='GTiff')
+
+#grid_1_cmems_atl_sp<-raster(file.path(dir_B,'prep/spatial/output/grid_1_cmems_atl_sp.tiff'))
+
+plot(grid_1_cmems_atl_sp)
+#still have to decide which spatial boundaries to use. I suggest to merge  fao+lme
+```
+
+#st_join
+https://r-spatial.github.io/sf/reference/st_join.html
+
+
+
+#turning the reg shapefile into a raster with the same dimensions as npp_crop but with cell values equal to the rgn_id of each polygon in the shapefile
+
+    ## By adding 'filename=......tif' R will directly save the raster into the defined file rather than memory
+
+```{r}
+
+
+
+```
+
+
+```{r 0.25-1 from CMEMS- qgis}
+#the grid that I extract from cmems do not work. I used again qgis to reproject the grid to mollweild projection. 
+grid_025_cmems_atl <- st_read("~/big/prep/spatial/qgis/grid_025_cmems_atl.shp", quiet = TRUE)
+grid_025_cmems_atl_sp <- as(grid_025_cmems_atl, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+
+system.time(extr <- raster::extract(nppAvg_m,grid_025_cmems_atl_sp,method='simple'))
+
+```
+
