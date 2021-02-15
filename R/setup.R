@@ -30,6 +30,7 @@ library(colorspace)
 ## color palette
 cols = rev(colorRampPalette(brewer.pal(11, 'Spectral'))(255)) # rainbow color scheme
 mytheme=rasterTheme(region=cols)
+
 #<<<<<<< HEAD
 ###set the memory size (since I'm working on the virtual machine)
 #memory.limit(size=56000)
@@ -38,4 +39,4 @@ mytheme=rasterTheme(region=cols)
 #>>>>>>> 34356ef819cd2f03894c741cae40a1cba0dc658c
 #
 
-insta
+
