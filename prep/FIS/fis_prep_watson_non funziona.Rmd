@@ -165,14 +165,14 @@ annual_files <- list.files(file.path(dir_w,"int/annual_catch"), full.names=TRUE)
 raw_suffx <- list(catchind = "CatchInd", catchnind = "CatchNInd")
 rast_prefx <- list(comm = "comm", artisanal = "artisanal")
 
-
+library(magrittr)
 #ho spostato i file che mi servono nelal cartella github- possibile problema è il settaggio elle cartelle
 
 ## Function for totalling landings/discards and saves raster files 
 catch2raster <- function(raw_suffx,rast_prefx){
   
 foreach(yr = years) %dopar% { 
- yr = 2015
+ #yr = 2015
   
   ## find file path of the respective year of data
   yr <- as.character(yr)
@@ -181,7 +181,7 @@ foreach(yr = years) %dopar% {
  
   
   ## read in raw data
-  raw_data <- readRDS(dataname[2])
+  raw_data <- readRDS(dataname)
 
   ## Total Landings per Cell
   landings <- raw_data %>%
@@ -247,7 +247,7 @@ foreach(yr = years) %dopar% {
   ## Select the catch data for the respective year
   datanames <- data_files[which(str_detect(data_files, yr))]
   ## read in the two data tables
-  list_data <- purrr::map(datanames, readRDS)
+  list_data <- purrr::map(data_files, readRDS)
   
   ## combine the two data tables in your list
   combined <- bind_rows(list_data)
@@ -255,8 +255,7 @@ foreach(yr = years) %dopar% {
   ## save to fis folder in mazu
   saveRDS(combined, paste0(dir_w, "/annual_catch/combined", sprintf("Catch_%s.rds",yr)))
     }
-    
-  }
+      }
 
 
 

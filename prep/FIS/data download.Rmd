@@ -1,3 +1,79 @@
+---
+title: "fis_prep_watson"
+author: "Serena"
+date: "5/9/2020"
+output: html_document
+---
+
+# New Global Fisheries Catch Data - Watson data
+(script derived from: globalprep/prs_fish/v2020/data_download.Rmd)
+
+# Summary
+
+The commercial fishing layers are created from spatialized catch (by gear??) data provided by Watson (2019)
+
+This script prepares and formats the IMAS Global Fisheries Catch raw data into intermediate data by combining Industrial and Non Industrial catch (Catch_XXXX_XXXX) rds files with geospatial information (sheet name Cells in Codes.xlsx), taxon information (sheet name Taxa in Codes.xlsx), gear (sheet name Gear in Codes.xlsx), and country information (sheet name Country in Codes.xlsx), as well as a single file with all years.
+
+# Data Source
+
+**Reference**: Watson, R. A. and Tidd, A. 2019. Mapping nearly a century and a half of global marine fishing: 1869–2017. Marine Policy, 93, pp. 171-177. [(Paper URL)](https://doi.org/10.1016/j.marpol.2018.04.023)
+
+**Downloaded**: September 5, 2020  from [IMAS portal](http://data.imas.utas.edu.au/portal/search?uuid=ff1274e1-c0ab-411b-a8a2-5a12eb27f2c0) - click on download tab, step 3
+
+**Description**:  Global fisheries landings data per cell separated by Industrial versus Non-Industrial catch, IUU, and discards.
+
+**Native data resolution**:   
+
+**Time range**: 1950 - 2015 (?halpern says 2017, but these data are not available yet on the website)
+
+**Format**:  CSV format
+
+**Additional Information**: [Metadata](http://metadata.imas.utas.edu.au/geonetwork/srv/eng/metadata.show), [Supplementary Material](https://ars.els-cdn.com/content/image/1-s2.0-S0308597X18300605-mmc1.docx)
+***
+
+* Industrial Catch (1950 - 2019) - reported, iuu, and discard catch data for each cell location and unique identifier
+* Non-Industrial Catch (1950 - 2015) - reported, iuu, and discard catch data for each cell location and unique identifier
+* Master Index File (Index.csv) - information associated with the unique identifiers. This is split into two files, "IndexInd" (industrial) and "IndexNInd" (non-industrial).
+* DATA CODE DEFINITIONS (gear/taxa/country codes and cell lat/lon references)
+
+**Data download**
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(sf)
+library(raster)       #Main raster library with nearly all functions used in this analysis
+library(rgdal)        #Spatial library - most functions used from rgdal are for vectors (shapefiles)
+library(dplyr)        #NOT spatial - this is a data wrangling library
+library(ggplot2)
+library(here)
+library(tidyverse)
+library(ncdf4)
+
+library(RColorBrewer)
+library(readxl)
+#install.packages("DT")
+library(DT)
+
+```
+
+
+*I need to save the csv file into rdf (kind of compress file) since csv have trouble with memory
+define paths for the raw data and layer folder held on my pc Documents folder. (Once the project starts, the path should migrate to a shared database)
+
+# Difference with OHI 2020: Updates from previous assessment 
+*they have already v5 of Watson data. It is stored in Mazu but it is not available from the web yet. The v5 is already structured on roder to avoid extra work on file. probably the years are splitted in different files. I.e. there were no index files to join with the raw data, because they already completed that for us
+* (Previously we had to do extra data prep to match the index files with the raw catch data. In version 5, this prep has been done for us. Now we just need to combine the raw data with geospatial information (sheet name Cells in Codes.xlsx), taxon information (sheet name Taxa in Codes.xlsx), gear (sheet name Gear in Codes.xlsx), and country information (sheet name Country in Codes.xlsx).)
+
+* Version 5 of the data includes years through 2017 (which was previously only 2015). For this assessment we are including the years through 2017 in the fisheries data, as well as the NPP data (which we only previously included through 2015 for). 
+
+
+#```{r setup, include=FALSE}
+#setwd("C:/Users/Serena/Documents/big_sere/watson#")
+#dir_w <- file.path("C:/Users/Serena/Documents/bi#g_sere/watson")
+#```
+
+
 ```{r setup, include=FALSE}
 
 
@@ -13,14 +89,14 @@ web_years <- c("Ind1950_1954", "Ind1955_1959", "Ind1960_1964", "Ind1965_1969",
 
 setwd("C:/Users/Acer/Documents/big/fis/watson")
 dir_w <- file.path("C:/Users/Acer/Documents/big/fis/watson")#dove mi salva i file più leggeri rds
-dir_big<-file.path("G:/Il mio Drive/big_drive/watson")#da dove mi prende grandi file originali di watson
-
+#dir_big<-file.path("G:/Il mio Drive/big_drive/watson")#da dove mi prende grandi file originali di watson
+dir_big<-file.path("C:/Users/Acer/Documents/big")
 list.files(dir_big)
 ## Download catch data from web and save into server(to decide)
 #very long process
 for(web_year in web_years){ 
 #web_year <- "Ind1955_1959"#
-data <- read.csv(file.path(dir_big, sprintf("Catch%s.csv", web_year)))
+data <- read.csv(file.path(dir_w, sprintf("Catch%s.csv", web_year)))
 saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
 }
 
@@ -37,8 +113,16 @@ saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
 for(web_year in web_years){ 
 #web_year <- "NInd1950_1954"#I have to change this everytime to save all the different file
 data <- read.csv(sprintf("https://data.imas.utas.edu.au/attachments/5c4590d3-a45a-4d37-bf8b-ecd145cb356d/Catch%s.csv", web_year))
-saveRDS(data, file.path(dir_big, sprintf("raw/Catch%s.rds", web_year)))
+saveRDS(data, file.path(dir_w, sprintf("raw/Catch%s.rds", web_year)))
 }
+
+dir_raw <- file.path("C:/Users/Acer/Documents/big/fis/watson/raw")
+dir_raw
+dir()
+for(web_year in web_years){
+  data<-readRDS(file.path(dir_raw,sprintf("Catch%s.rds", web_year)))
+}
+
 
 #Explore Watson v4
 data1 <- readRDS(file.path(dir_w, "raw/CatchInd1950_1954.rds"))
@@ -46,3 +130,4 @@ str(data1)
 data2 <- readRDS(file.path(dir_w, "CatchInd1955_1959.rds"))
 data3 <- readRDS(file.path(new_rawFolder, "CatchInd2005_2009.rds"))
 }
+```

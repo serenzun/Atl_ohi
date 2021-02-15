@@ -1,0 +1,337 @@
+---
+title: "Regions -Select EEZs from Global Shapefile and FAO shp"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(sf)
+library(raster)       #Main raster library with nearly all functions used in this analysis
+library(rgdal)        #Spatial library - most functions used from rgdal are for vectors (shapefiles)
+library(dplyr)        #NOT spatial - this is a data wrangling library
+
+#devtools::install_github("ecohealthalliance/fasterize")  #to install fasterize you need to run this line
+library(fasterize)
+#devtools::install_github("tidyverse/ggplot2")
+library(ggplot2)
+library(dplyr)
+library(rgdal)
+library(raster)
+library(here)
+library(ggridges)
+library(ggplot2)
+library(tidyverse)
+library(ncdf4)
+library(rgeos)
+```
+
+## Set template ocean raster and mollweide projection CRS
+```{r}
+ocean <- raster::raster(file.path(dir_B, 'prep/spatial/spatial_ohi_supplement/ocean.tif'))
+mollCRS=crs('+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs')
+```
+#Read in global shapefile
+
+You will have to point the path to where the global OHI EEZ file is located on your local computer.
+
+#use st_read to read in the global regions shapefile as a simple feature object -->https://ohi-science.org/news/cropping-rasters-down-to-size 
+This comes from the sf package and is a preferred method of loading and working with spatial data as opposed to using readOGR() from the rgdal package. The st_read() function will read in the shapefile as a simple feature object, meaning the spatial information is stored in a dataframe. This allows you to use data wrangling tools such as dplyr to work with the data.
+
+#Data source
+
+https://mazu.nceas.ucsb.edu/data/#ohi_regions
+
+FAO data : http://www.fao.org/figis/geoserver/area/ows?service=WFS&request=GetFeature&version=1.0.0&typeName=area:FAO_AREAS&outputFormat=SHAPE-ZIP
+
+```{r shapefile}
+here()
+##Read 
+regions_ohi_supp<-st_read("~/big/prep/spatial/spatial_ohi_supplement/regions/regions_gcs.shp") %>% 
+  filter(rgn_typ%in%c("eez","fao"))#from 322 to 254
+
+
+setwd("C:/Users/Acer/Documents/big")
+regions_gl <- st_read("~/big/prep/spatial/atl_regions/FAO_AREAS.shp", quiet = TRUE)
+
+head(regions_gl)
+plot(regions_gl[4]) #plot() which column to show, otherwise R will create a plot for every column, which we do not need
+
+# filter the regions you want:
+regions_atl_FAO<- regions_gl %>% 
+  dplyr::filter(OCEAN == "Atlantic") %>% 
+  filter(F_LEVEL=="MAJOR") %>% 
+  dplyr::select(-13,-14) 
+  
+#reduce to F_CODE
+plot(regions_atl_FAO[4], key.pos=1)
+
+######Atlantic mask raster#####
+#fasterize the atl_fao to have a mask to crop next file
+atl_mask<-fasterize(regions_atl_FAO, ocean, field= "F_STATUS")
+
+##keep cells_raster from Watson code file to use as raster model to fasterizze.
+plot(cells_raster)
+atl_mask<-fasterize(regions_atl_FAO, cells_raster, field= "F_STATUS")
+plot(atl_mask)
+writeRaster(atl_mask,
+            file.path(dir_B, 'prep/spatial/output/atl_mask.tif'))
+
+```
+
+```{r Spatial polygon dataframe}
+ 
+#Save shapefile: save the output (saving as an ESRI Shapefile)
+
+
+spatial_output='~/big/prep/spatial/output' 
+dir.create(bigdir, showWarnings=T)
+#sf::write_sf(regions_atl_FAO,paste0(spatial_output),  "Regions_atl_FAO.shp", driver = "ESRI Shapefile")#if you want to re-run, delete the file in the folder
+
+regions_atl_FAO <- st_read("~/big/prep/spatial/output/Regions_atl_FAO.shp", quiet = TRUE)
+
+plot(regions_atl_FAO[1])
+#we need to convert the regions object to a SpatialPolygonsDataFrame. This is done using as(). You pass your simple feature object - regions - to as() and tell it to convert to a Spatial object. This returns the same polygons but as a SpatialPolygonsDataFrame.
+
+library(rgdal)
+reg_atl_FAO_sp <- as(regions_atl_FAO, 'Spatial') #to avoid the error 'invalid multibyte string' delete the special chr (french and spanish name)
+reg_atl_FAO_sp
+
+
+plot(reg_atl_FAO_sp)
+
+rgns_atl_fao<-read_sf(dsn=file.path(dir_B,"prep/spatial/output/Regions_atl_FAO.shp"),layer="Regions_atl_FAO") %>% 
+  filter(F_LEVEL=="MAJOR")
+rgns_lng_atl<-read_sf(dsn=file.path(dir_B,"prep/spatial/output/atl_ohi_longhurst.shp"),layer="atl_ohi_longhurst")
+rgns_lng_atl<-mutate(rgns_lng_atl, id_lng=rownames(rgns_lng_atl))
+fao_lng<-st_intersection(rgns_atl_fao,rgns_lng_atl)
+
+lng_fao<-st_intersection(rgns_lng_atl,rgns_atl_fao)
+plot(lng_fao["id_lng"])
+
+crs(rgns_atl_fao)
+crs(rgns_lng_atl)
+dev.neW()
+plot(fao_lng["id_lng"],col=brewer.pal(20, "Set1"))#see R tips and tricks for colour
+plot(fao_lng["F_AREA"])
+writeOGR(fao_lng,dsn=file.path(dir_B, "prep/spatial/output"), layer = "fao_lng", driver="ESRI Shapefile")
+
+st_write(fao_lng,dsn='~/big/prep/spatial/output',layer='fao_lng', driver = "ESRI Shapefile")
+
+fao_lng<-as(fao_lng,"spatial")
+fao_lng$id_lng
+```
+
+```{r}
+
+#raster of the atlantic FAO regions created with zonal in npp_pres layer
+zones <- stack(file.path(bigdir, 'zones.tif'))#Large SpatialGridDataFrame
+
+
+library(ncdfgeom)
+library(maptools)
+data(wrld_simpl)
+plot(wrld_simpl)
+
+```
+##Longhurst provinces
+```{r}
+lng_gl<-st_read("~/big/Longhurst_world_v4_2010/Longhurst_world_v4_2010.shp",quiet=TRUE)#I have simplified the geometry through the mapshaper.org. The problem lies in some polygons of the baltic sea.
+#
+lng_gl_sp <- as(lng_gl, 'Spatial')
+
+#lng_gl_sptr <- spTransform(lng_gl_sp, CRS( "+init=epsg:4326" ) ) 
+lng_gl_sp_buffer <- rgeos::gBuffer(lng_gl_sp, byid=TRUE, width=0) # go in to solve topology problems
+
+
+head(lng_gl)
+crs(lng_gl_sp)
+plot(lng_gl_sp)
+head(lng_gl_sptr)
+lng_atl_cr<-raster::crop(lng_gl_sp_buffer,reg_atl_FAO_sp)
+#lng_atl<-raster::mask(lng_atl_cr,reg_atl_FAO_sp)Error in (function (classes, fdef, mtable) : unable to find an inherited method for function ‘mask’ for signature ‘"SpatialPolygonsDataFrame", "SpatialPolygonsDataFrame"’
+
+lng_atl_cr<-raster::crop(lng_gl_sp_buffer,atl_mask)#questa non funziona-forse non hanno la stessa proezione
+rgns_lng_atl<-lng_atl_cr
+plot(lng_atl_cr)
+head(lng_atl_cr)
+
+
+
+```
+
+
+
+#Save shapefile
+
+Use rgdal::writeOGR() to save the shapefile. Set the driver equal to ESRI Shapefile.
+
+```{r save}
+#writeOGR(lng_atl_cr,dsn='~/big/prep/spatial/output',layer='atl_ohi_longhurst', driver = "ESRI Shapefile")
+
+#save a copy on github
+writeOGR(rgns_lng_atl,dsn='C:/Users/szunino/Documents/github/Atl_ohi/prep/spatial/output',layer='rgns_lng_atl', driver = "ESRI Shapefile")
+
+rgns_lng_atl<- st_read("C:/Users/szunino/Documents/github/Atl_ohi/prep/spatial/output/rgns_lng_atl.shp", quiet = TRUE)
+
+plot(rgns_lng_atl[1])+plot(inters[1])
+
+##add a column with number id for each provinces:
+
+rgns_lng_atl<-mutate(rgns_lng_atl, id_lng=rownames(rgns_lng_atl))
+inters<-st_intersection(rgns_lng_atl,regions_atl_FAO)
+plot(inters[1])
+inters_sp
+plot(lng_atl_cr)
+raster::click(lng_atl_cr)
+```
+
+
+##LME provinces
+
+```{r}
+
+lme_gl<-st_read("~/big/prep/spatial/raw/LMEs66.shp",quiet=TRUE)
+#I have simplified the geometry through the mapshaper.org. The problem lies in some polygons of the baltic sea.
+#
+lme_gl_sp <- as(lme_gl, 'Spatial')
+
+lme_gl_sp_buffer <- rgeos::gBuffer(lme_gl_sp, byid=TRUE, width=0) # go in to solve topology problems
+
+
+head(lme_gl)
+crs(lme_gl_sp)==crs(reg_atl_FAO_sp)
+plot(lme_gl_sp)
+head(lng_gl_sptr)
+lme_atl_cr<-raster::crop(lme_gl_sp_buffer,reg_atl_FAO_sp)
+
+plot(lme_atl_cr)
+head(lng_atl_cr)
+
+
+```
+
+```
+```{r}
+```{r save}
+#writeOGR(lme_atl_cr,dsn='~/big/prep/spatial/output',layer='reg_atl_lme', driver = "ESRI Shapefile")
+
+#save a copy on github
+writeOGR(lme_atl_cr,dsn='C:/Users/szunino/Documents/github/Atl_ohi/prep/spatial/output',layer='reg_atl_lme', driver = "ESRI Shapefile")
+
+reg_atl_lme <- st_read("C:/Users/szunino/Documents/github/Atl_ohi/prep/spatial/output/reg_atl_lme.shp", quiet = TRUE)
+
+plot(reg_atl_lme[3])
+```
+
+
+## get a sample file to convert other spatial data
+tmp <- read_sf(dsn = RAM_spatial_dir, layer = ram_sf[1])
+```
+
+## Get OHI Raster/Zonal Data:
+
+* **regions_eez_with_fao_ant.tif** - This includes all the ocean regions (eez/fao/antarctica), but the raster cell values correspond to the rgn_ant_id in regions_2017_update.  This file is most often used to extract pressure values for each region.
+* **regionData.csv** - has data for spatial id's used in raster
+
+#Data Source: https://mazu.nceas.ucsb.edu/data/
+Regions: This folder includes shapefiles in both the Mollweide (regions_mol) and WGS 84 (regions_gcs) coordinate reference systems (Fig. 1). See this primer for more information about coordinate reference systems. These files can be opened in mapping programs such as ArcGIS, GRASS GIS, and R. Table 1 includes information about the data fields included in these shapefiles.
+
+```{r, eval=FALSE}
+## Grab OHI base data for pressures
+zones <- raster(file.path(dir_B, "git-annex/globalprep/spatial/v2017/regions_eez_with_fao_ant.tif")) 
+rgn_data <- read.csv(file.path(dir_M, "git-annex/globalprep/spatial/d2014/data/rgn_mol_raster_1km/regionData.csv"))
+
+
+```{r RAM to OHI_FAO rgn, eval = FALSE}
+##################################
+## Combine OHI and FAO regions
+## get OHI regions and transform
+
+
+
+regions <- read_sf(dsn = file.path(dir_B, "prep/spatial/spatial_ohi_supplement/regions"), layer = "regions_gcs") %>% 
+  filter(rgn_typ!="land") 
+plot(regions)
+regions_atl_FAO <- st_read("~/big/prep/spatial/output/Regions_atl_FAO.shp", quiet = TRUE)
+## get a sample file to convert other spatial data
+tmp <- read_sf(dsn = RAM_spatial_dir, layer = ram_sf[1])
+
+regions_atl_tr <- st_transform(regions_atl_FAO, st_crs(tmp)$epsg)
+regions_tr <- st_transform(regions, st_crs(tmp)$epsg)
+regions_ohi_fao_atl <- st_intersection(regions_tr, regions_atl_tr)
+head(regions_ohi_fao_atl)
+st_write(regions_ohi_fao_atl, dsn = file.path(dir_B, "prep/spatial/int"), 
+                             layer = "regions_atl_tr", driver = "ESRI Shapefile")
+```
+
+
+```{r RAM to OHI_FAO rgn, eval = FALSE}
+##I will add the id code of the LME and LNG areas.
+reg_atl_LNG<-as(reg_atl_LNG,"spatial")
+rgns_atl_tr <- st_transform(reg_atl_LNG, st_crs(tmp)$epsg)
+regions_ohi_fao_lng_atl<-st_intersection(regions_ohi_fao_atl, regions_lng_tr)
+
+st_write(regions_ohi_fao_lng_atl, dsn = file.path(dir_B, "prep/spatial/int"), 
+                             layer = "regions_ohi_fao_lng_atl", driver = "ESRI Shapefile")
+
+##regions_atl_sp <- as(regions_atl, "Spatial") # convert to spatial polygons 
+
+## FAO region
+
+#fao_regions <- read_sf(dsn = file.path(dir_M, #"git-annex/Global/NCEAS-Regions_v2014/orig/FAO_AREAS"), layer="FAO_AREAS") %>%
+#  filter(F_LEVEL == "MAJOR")
+str(regions_atl_tr)
+
+st_write(regions_atl_tr, dsn = file.path(dir_B, "prep/spatial/int"), 
+                             layer = "regions_atl_tr", driver = "ESRI Shapefile")
+
+sf::write_sf(regions_atl,paste0(spatial_output),  "Regions_atl.shp", driver = "ESRI Shapefile",overwrite=TRUE)
+############################################
+## Overlay stock data on fao-ohi region data
+
+fao_ohi <- st_read(file.path(dir_M, "git-annex/globalprep/fis/v2017/int"), 
+        layer = "ohi_fao_rgns")
+
+stock_fao_ohi <- NA
+for(stock in ram_sf) {   # stock = ram_sf[85]
+    cat(paste0(stock, "\n"))
+    tmp_poly <- read_sf(dsn = RAM_spatial_dir, layer = stock)
+    tmp_fao_ohi <- st_intersection(fao_ohi, tmp_poly)
+    if(sum(is.na(stock_fao_ohi))==1){
+      stock_fao_ohi <- tmp_fao_ohi
+    }else
+    {stock_fao_ohi <- rbind(stock_fao_ohi, tmp_fao_ohi)}
+}
+```
+
+
+```{r RAM to OHI_FAO rgn, eval = FALSE}
+##################################
+from v2017 Ram data prep_I need this script to merge OHI and FAO data and eventually merge lng or the new shp that will come out from atlanteco
+## Combine OHI and FAO regions
+## get OHI regions and transform
+ohi <- read_sf(dsn = file.path(dir_M, "git-annex/globalprep/spatial/v2017"), layer = "regions_2017_update")
+ohi <- st_transform(ohi, st_crs(tmp)$epsg)
+# ohi <- as(ohi, "Spatial") # convert to spatial polygons file
+## FAO region
+fao_regions <- read_sf(dsn = file.path(dir_M, "git-annex/Global/NCEAS-Regions_v2014/orig/FAO_AREAS"), layer="FAO_AREAS") %>%
+  filter(F_LEVEL == "MAJOR")
+fao_ohi <- st_intersection(ohi, fao_regions)
+st_write(fao_ohi, dsn = file.path(dir_M, "git-annex/globalprep/fis/v2017/int"), 
+                             layer = "ohi_fao_rgns", driver = "ESRI Shapefile")
+############################################
+## Overlay stock data on fao-ohi region data
+fao_ohi <- st_read(file.path(dir_M, "git-annex/globalprep/fis/v2017/int"), 
+        layer = "ohi_fao_rgns")
+stock_fao_ohi <- NA
+for(stock in ram_sf) {   # stock = ram_sf[85]
+    cat(paste0(stock, "\n"))
+    tmp_poly <- read_sf(dsn = RAM_spatial_dir, layer = stock)
+    tmp_fao_ohi <- st_intersection(fao_ohi, tmp_poly)
+    if(sum(is.na(stock_fao_ohi))==1){
+      stock_fao_ohi <- tmp_fao_ohi
+    }else
+    {stock_fao_ohi <- rbind(stock_fao_ohi, tmp_fao_ohi)}
+}

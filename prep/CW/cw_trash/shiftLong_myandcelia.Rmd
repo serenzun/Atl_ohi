@@ -1,0 +1,146 @@
+---
+title: "shift long"
+author: "sz"
+date: "3/2/2021"
+output: html_document
+---
+
+count_density_size1_360
+```{r}
+  weight_torepro = list.files(file.path(data_wd,'/original_eriksen_data'),'weight_*',full.names=T)
+    count_torepro  = stack(list.files(file.path(data_wd,'tmp/unlog'),'unlog_*',full.names=T))
+    
+library(raster)
+    data_wd = file.path(dir_B,'R_raster_tmp/trash')
+
+wg <- raster(file.path(data_wd ,'original_eriksen_data/weight_density_size1_360.tif'))
+wg1<- crop(wg, extent(-180, 360, -90, 90))
+plot(wg1)    
+wg2 <- crop(wg, extent(0, 180, -90, 90))   
+plot(wg2)
+    
+
+extent(wg1) <- c(-180, 0, -90, 90)
+extent(wg2)<- c(0, 180, -90, 90)
+
+plot(wg1)
+
+wg_merge <- merge(wg1, wg2,overlap=FALSE)
+
+plot(wg_merge)
+latlong=crs("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+crs(ma)<-"+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"
+
+plot(ma)
+#writeRaster(ma, 'tmp/ma.tif', format="GTiff")
+#merge<-raster("tmp/ma.tif")
+#plot(merge)
+??col
+```
+
+
+```{r}
+#predno un file script e ripeto l'operaizione per 4 volte
+mytheme <- rasterTheme(region = rev(colorRampPalette(brewer.pal(11, 'Spectral'))(255)))
+
+#set working directory on neptune
+data_wd = file.path(dir_B,'R_raster_tmp/trash')
+setwd(data_wd)
+getwd()
+
+x <- raster(file.path(data_wd ,'original_eriksen_data/count_density_size1_360.tif'))
+plot(x)
+y <- raster(file.path(data_wd ,'original_eriksen_data/weight_density_size1_360.tif'))
+
+x2 <- raster(file.path(data_wd ,'sa-marine-debris-count_density_size2_360.tif'))
+x3 <- raster(file.path(data_wd ,'sa-marine-debris-count_density_size3_360.tif'))
+```
+```{r}
+data_tria2l = file.path(dir_B,'R_raster_tmp/trash/geotiff_geoserver_debris')
+prova4<-raster(file.path(data_tria2l,'ebsa-marine-debris-count_density_size4_360.tif'))
+plot(prova4)
+click(prova4)
+
+```
+
+```{r}
+#Cut in two pieces, change the extent of the western hemisphere, and merge again.
+x<-raster(file.path(data_wd,'original_eriksen_data/count_density_size4_360.tif'))
+x1<-x
+x1<- crop(x, extent(150, 360, -90, 90))
+plot(x1)
+```
+
+
+
+```{r}
+x2 <- crop(x, extent(0, 150, -90, 90))   
+plot(x2)
+```
+
+
+```{r}
+
+
+extent(x1) <- c(-150, 0, -90, 90)
+extent(x2)<- c(0, 150, -90, 90)
+
+ma <- merge(x1, x2,overlap=FALSE)
+latlong=crs("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+crs(ma)<-"+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"
+
+plot(ma)
+#writeRaster(ma, 'tmp/ma.tif', format="GTiff")
+#merge<-raster("tmp/ma.tif")
+#plot(merge)
+??col
+```
+
+
+
+
+```{r}
+extent(ma)
+ocean = raster(file.path(dir_B,'prep/spatial/spatial_ohi_supplement/ocean.tif'))
+plot(ocean)
+crs(ma)=crs(ocean)
+extent(ma)=extent(ocean)
+projection(ma) <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"  
+
+writeRaster(ma,filename=file.path(data_wd,"sa-marine-debris-count_density_size4_360.tif"), format="GTiff",overwrite=TRUE)
+??writeRaster
+ma <- projectRaster(ma, crs=(ocean))
+plot(ma)+
+  plot(ocean, add=TRUE)
+```
+
+
+,over=T,progress='text',filename=file.path(data_wd,'tmp/prll.tif'),overwrite=T)
+writeRaster(ma, 'tmp/merdall.tif',format="GTiff",overwrite=T)
+extent(ma)
+extent(ocean)
+#This assumes a well behaved global raster with edges at -180, and 180 and the zero meridian being in between two columns.
+getwd()
+mollCRS=crs('+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs')
+latlong=crs("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0")
+
+```{r}
+xyz_ch<-read.csv("Xplus180%360meno180.csv", header=TRUE)
+celia_rs <- rasterFromXYZ(xyz_ch, crs=latlong)
+writeRaster(celia_rs, 'tmp/celia.tif', format="GTiff")
+plot(celia_rs)
+cells=projectRaster(celia_rs, crs=(ocean))
+plot(ocean)+
+  plot(cells,add=TRUE)
+crs(cells_raster)
+crs(ma)
+proj4string(ma)
+proj4string(ocean)
+
+extent(ma)=extent(ocean)
+plot(cells)+
+plot(ocean)
+#metodo celia con python
+new_Lon = ( old_Lon + 180 )%360 -180
+```
+

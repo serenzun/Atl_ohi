@@ -1,0 +1,115 @@
+---
+title: "ZonaExtract"
+author: "sz"
+date: "10/2/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#zones <- raster(file.path(rast_loc, "sp_mol_raster_1km.tif"))  # raster data
+#rgn_data <- read.csv(file.path(rast_loc, 'regionData.csv'))    # data for sp_id's used in raster
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+#########################################
+## Trash ----
+#########################################
+# some issues dealing with the preparation of these data: 
+# https://github.com/OHI-Science/issues/issues/306#issuecomment-72252954
+# also want to apply ice mask so as to eliminate these regions
+
+
+
+## creating data with ice mask
+# trash <- raster('/var/data/ohi/git-annex/globalprep/FiveGyres_MarinePlastics_CW/v2015/output/weight_rescale.tif')
+# ice_mask_resampled <- raster("/var/data/ohi/git-annex/Global/NCEAS-Pressures-Summaries_frazier2013/ice_mask_resampled")
+# s <- stack(ice_mask_resampled, trash)
+# overlay(s, fun=function(x,y) x*y,
+#         filename="/var/data/ohi/git-annex/globalprep/FiveGyres_MarinePlastics_CW/v2015/output/weight_rescale_icemask.tif",
+#         progress="text", overwrite=TRUE)
+```{r}
+
+zones_fao = raster(zones_fao, file.path(atl,'prep/spatial/output/zones_fao.tif'))
+##still have to decide which spatial boundaries to use. I suggest to merge  fao+lme
+    
+
+#grid_1<-raster(file.path(atl, "/prep/spatial/output/grid_1.tif"))
+
+
+rast<-raster(file.path(data_wd,'/output/weight_atl_rescale.tif'))
+zones <- raster(file.path(rast_loc, "sp_mol_raster_1km.tif"))  # raster data
+rgn_data <- read.csv(file.path(dir_B, "prep/spatial/output/regionData_fao_atl.csv"))    # data for sp_id's used in raster
+# extract data for each region:
+regions_stats <- zonal(rast,  zones_fao, fun="mean", na.rm=TRUE, progress="text")
+regions_stats2 <- data.frame(regions_stats)
+setdiff(regions_stats2$zones_fao,rgn_data$rgn_id) #should be none
+setdiff(rgn_data$rgn_id, regions_stats2$zones_fao) #should be none
+
+!!!data <- merge(rgn_data, regions_stats, all.y=TRUE, by.x="ant_id", by.y="zone")
+
+## save data for toolbox
+eez <- data %>%
+  filter(sp_type=="eez") %>%
+  dplyr::select(rgn_id, pressure_score=mean)
+
+#write.csv(eez, file.path(save_loc, 'data/trash_eez_2015.csv'), row.names=FALSE)
+eez <- read.csv(file.path(save_loc, 'data/trash_eez_2015.csv'))
+
+fao <- data %>%  ## probably not a pressure in high seas
+  filter(sp_type=="fao") %>%
+  dplyr::select(rgn_id, pressure_score=mean)
+
+# write.csv(fao, file.path(save_loc, 'data/trash_fao_2015.csv'), row.names=FALSE)
+
+
+```
+
+## plot the data to make sure range of values for regions is reasonable
+library(ggplot2)
+ggplot(data, aes(mean)) +
+  geom_histogram(fill="gray", color="black") + 
+  theme_bw() + 
+  labs(title="Region scores for trash")
+quantile(data$mean)
+
+data %>%
+  filter(sp_type=="eez") %>%
+arrange(mean)
+
+
+Use `raster::extract()` to get all values of the raster within each of your subregions. This function returns all cell alues in a list in length equal to the number of subregions. The list can be turned into a dataframe with two columns;
+
+- **value** are the cell values (in this case number of anomalous weeks)  
+- **rgn_name** are the names of the sub regions
+
+```{r}
+# get all values within each region
+
+##raster extract want the shp as extractor
+system.time(extr <- raster::extract(rast,reg_atl_FAO_sp_moll,method='simple',weight=TRUE)) #weight:true->how much of the cell falls into each region
+
+%>%
+  setNames(reg_atl_FAO_sp_moll@data$NAME_EN))
+# plot distribution of data per region
+
+df <- data.frame(unlist(extr))%>%
+      rename(value = unlist.extr.)%>%  
+        filter(!is.na(value)) %>% 
+      mutate(id=row_number())
+
+#the gsub here removes all numbers from the rgn_name
+#now we have each value assigned to rgn_name.
+head(df)
+plot(df)
+plot(extr[,"value"])
+
+ggplot(df)
+```
+
+
+```
+
