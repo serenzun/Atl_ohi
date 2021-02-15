@@ -53,7 +53,7 @@ regions_ohi_supp<-st_read("~/big/prep/spatial/spatial_ohi_supplement/regions/reg
 
 
 setwd("C:/Users/Acer/Documents/big")
-regions_gl <- st_read("~/big/prep/spatial/atl_regions/FAO_AREAS.shp", quiet = TRUE)
+regions_gl <- st_read("~/big/prep/spatial/FAO_AREAS.shp", quiet = TRUE)
 
 head(regions_gl)
 plot(regions_gl[4]) #plot() which column to show, otherwise R will create a plot for every column, which we do not need
@@ -78,6 +78,11 @@ plot(atl_mask)
 writeRaster(atl_mask,
             file.path(dir_B, 'prep/spatial/output/atl_mask.tif'))
 
+atl_mask<-raster::raster("C:/Users/Acer/Documents/big/prep/spatial/atl_mask.tif")
+extent(atl_mask)
+res(atl_mask)
+crs(atl_mask)
+plot(atl_mask)
 ```
 
 ```{r Spatial polygon dataframe}
