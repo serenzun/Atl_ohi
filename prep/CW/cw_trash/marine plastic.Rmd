@@ -17,7 +17,7 @@ output:
 
 This data was used in the Clean Waters goal 
 
-***
+
 
 #Data Source
 
@@ -171,7 +171,7 @@ Data came to use logged (using base 10 log) so need to 'unlog' the data first
 ```{r moll rasters,  message=F, warning=F}
 count_moll      = raster(file.path(data_wd,'/tmp/count_sum_moll.tif'))
 count_moll_1km  = raster(file.path(data_wd,'/tmp/count_sum_moll_1km.tif'))
-weight_moll     = raster(file.path(data_wd,'tmp/weight_sum_moll_1km.tif'))
+weight_moll     = raster(file.path(data_wd,'tmp/weight_sum_moll.tif'))
 weight_moll_1km = raster(file.path(data_wd,'tmp/weight_sum_moll_1km.tif'))
 
 ```
@@ -200,19 +200,43 @@ weight_moll_1km = raster(file.path(data_wd,'tmp/weight_sum_moll_1km.tif'))
     plot(w_log,col=cols,main='Weight density\nlog(g/km2)')
     plot(c_log,col=cols,main='Count density\nlog(pieces/km2)')
 ```
+## Mask out atlantic
+```{r mask ocean,warning=F,message=F}
+#     count_mask = mask(count_moll_1km,ocean,progress='text',filename = file.path(data_wd,'/tmp/count_sum_moll_1km_clip.tif'),overwrite=T)
+
+ 
+#àtoo slow. for the moment i will work onthe high resolution mask created by qgis
+atl_mask_highres<-raster::raster(file.path(dir_B,"prep/spatial/output/atl_mask_highres.tif"))
+
+    
+    weight_mask_atll = crop(weight_moll_1km,atl_mask_highres,progress='text',filename=file.path(data_wd,'tmp/weight_sum_moll_1km_clip_atl.tif'),overwrite=T)
+    plot(weight_mask_atll, col=cols)
+   
+extent(atl_mask_highres)=extent(weight_mask_atll)
+   weight_mask_atll<-mask(weight_mask_atll, atl_mask_highres, filename=file.path(data_wd,'tmp/weight_sum_moll_1km_clip.tif'),overwrite=T)   
+    plot(weight_mask_atll,col=cols,main='Weight density(g/km2)')
+    
+    w_atl_log = calc(weight_mask_atll,fun=function(x){log(x+1)},filename=file.path(data_wd,'tmp/weight_sum_moll_1km_clip_atl_log.tif'),overwrite=T) 
+    w_atl_log<-raster(file.path(data_wd,'tmp/weight_sum_moll_1km_clip_atl_log.tif'))
+     plot(w_atl_log,col=cols,main='Weight density\nlog(g/km2)')
+```
+
+
 
 ## Reference point 
 
 The reference point is the 99.99th quantile of the data.
 ```{r quantile,message=F,warning=F,eval=F}
-w_ref = quantile(w_log,prob=c(0.001,0.01,0.1,0.25,0.5,0.75,0.9,0.99,0.999,0.9999))
+
+
+w_atl_ref = quantile(w_atl_log,prob=c(0.001,0.01,0.1,0.25,0.5,0.75,0.9,0.99,0.999,0.9999),progress='text')
 c_ref = quantile(c_log,prob=c(0.001,0.01,0.1,0.25,0.5,0.75,0.9,0.99,0.999,0.9999))
 
-w_ref=quantile(w_log, prob=c(0.9999))
+
 w_99 = w_ref[10]
 c_99 = c_ref[10]
 
-histogram(w_log,main='Weight density (log(g/km2))')
+histogram(w_atl_log,main='Weight density (log(g/km2))')
 histogram(c_log,main='Count density (log(pieces/km2))')
 ```
 
@@ -220,10 +244,11 @@ histogram(c_log,main='Count density (log(pieces/km2))')
 
 Using the reference point, rescale the data so that all values are between 0 and 1.
 ```{r rescale, message=F,warning=F}
- w_rescale = calc(w_log,fun=function(x){ifelse(x>w_99,1,x/w_99)},filename=file.path(data_wd,'output/weight_rescale.tif'),overwrite=T)
 
+# w_rescale = calc(w_log,fun=function(x){ifelse(x>w_99,1,x/w_99)},filename=file.path(data_wd,'v2015/output/weight_re
 w_rescale = raster(file.path(data_wd,'/output/weight_rescale.tif'))
-raster:plot(w_rescale,main='Pressure layer: weight density (g/km2)',col=cols)
+#raster:plot(w_rescale,main='Pressure layer: weight density (g/km2)',col=cols)
+
 
 c_rescale = calc(c_log,fun=function(x){ifelse(x>c_99,1,x/c_99)},filename=file.path(data_wd,'output/count_rescale.tif'),overwrite=T)
 
@@ -242,7 +267,12 @@ compare <- stack(w_rescale, c_rescale)
 pairs(compare)    
 
 ## Here is a scatter plot comparison:
-#plot(w_rescale, c_rescale, ylab="Count", xlab="Weight", maxpixels=10000000, col=rgb(0,0,0,0.2))   
-plot(c_rescale, ylab="Count",  maxpixels=10000000, col=rgb(0,0,0,0.2))  
+plot(w_rescale,  ylab="Count", xlab="Weight", maxpixels=10000000, col=rgb(0,0,0,0.2))   
+#plot(w_rescale,c_rescale, ylab="Count",  maxpixels=10000000, col=rgb(0,0,0,0.2))  
 
 ```
+
+
+
+##Zonal extraction
+see other file
