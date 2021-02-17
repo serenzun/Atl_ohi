@@ -86,7 +86,8 @@ weight = list.files(path=file.path(data_wd),pattern='weight_*',full.names=T)
 # There are 3 extra weight files from the data source. For sizes 2-4, there is a file with a '2' at the end of it. These are the rasters
 # that work, while the other three do not. As an example:
 
-#raster(file.path(data_wd,'v2015/globalplastic_wd_cd_rasters_180/weight_density_size2_180.tif')) #gives an error
+a<-raster(file.path(data_wd,'weight_density_size2_360.tif')) #gives an error
+res(a)
 #but
 a<-raster(count[1]) #works! These are the ones we will use, along with weight size 1
 
@@ -183,7 +184,7 @@ weight_moll_1km = raster(file.path(data_wd,'tmp/weight_sum_moll_1km.tif'))
 
     count_mask  = raster(file.path(data_wd,'/tmp/count_sum_moll_1km_clip.tif'))
     weight_mask = raster(file.path(data_wd,'tmp/weight_sum_moll_1km_clip.tif'))
-    
+    res(weight_mask)
     plot(count_mask,col=cols,main='Count density (pieces/km2)')
     plot(weight_mask,col=cols,main='Weight density (g/km2)')
 ```
